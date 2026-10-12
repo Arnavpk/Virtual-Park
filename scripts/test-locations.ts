@@ -77,6 +77,9 @@ check('...and a route reaches its middle from Summer Garden', !!terrace && terra
 check('the path under the trees between Space Trainer and Turbo Force is walkable', [{ x: -25, z: 47 }, { x: -23, z: 52 }, { x: -19, z: 54.5 }].every((p) => isWalkable(p.x, p.z) && !isBlocked(p.x, p.z)));
 const treeLine = findRoute({ x: -33, z: 36 }, DOORS['2'])!;
 check('the road along the tree line now joins the Turbo Force road directly', !!treeLine && treeLine.points.some((p) => p.x > -27 && p.x < -17 && p.z > 47 && p.z < 57), `${Math.round(treeLine.metres)} m`);
+check('the road up the east side of the Z Force lawn is continuous', [{ x: 60.5, z: -46 }, { x: 61, z: -52 }, { x: 61, z: -57 }].every((p) => isWalkable(p.x, p.z) && !isBlocked(p.x, p.z)));
+const eastSide = findRoute({ x: 54, z: -38 }, { x: 61, z: -62 })!;
+check('...and a route uses it instead of going round', !!eastSide && eastSide.metres < 45, eastSide ? `${Math.round(eastSide.metres)} m` : 'no route');
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`);

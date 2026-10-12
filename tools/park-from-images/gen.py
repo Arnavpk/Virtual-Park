@@ -124,6 +124,9 @@ FORCED_PAVEMENT_WORLD = [
     # The path under the tree cluster between Space Trainer and Turbo Force, joining the road along
     # the tree line to the road that curves down to Turbo Force. The canopies hide it in the render.
     [(-28, 44), (-22, 43.5), (-19.5, 46), (-19.5, 50), (-15, 51.5), (-14, 56), (-18, 57.5), (-24, 56.5), (-29, 55)],
+    # The road up the east side of the Z Force lawn (past Cream Scream towards You Are The Star). Tree
+    # canopies and the hall's roof box hid its middle, leaving two dead ends.
+    [(57.5, -44), (60.5, -40), (62, -44), (62.5, -50), (63, -58), (62, -62), (59, -62), (59.5, -56), (58.5, -50)],
     # Summer Garden parasol terrace: link from the terrace to the walk in front of the kitchen.
     [(19, -34.5), (24, -34), (24, -28.5), (19, -28.5)],
 ]
