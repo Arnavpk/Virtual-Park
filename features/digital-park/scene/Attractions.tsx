@@ -4,7 +4,7 @@ import type { Attraction, Landmark } from '../data/types';
 import { Garden, Gate, Hall, Kiosk, Parasols, Plaza, RoundPool, ShipCafe, Windmill } from './models/buildings';
 import { rad } from './models/parts';
 import {
-  Arm, Bumper, Carousel, Disco, Ferris, Fountain, Frisbee, HalfPipe, Maze, Playground, Ship, Spinner, Splash,
+  Arm, Bumper, Carousel, Disco, Ferris, Fountain, Frisbee, HalfPipe, Hoppla, Maze, Playground, Ship, Spinner, Splash,
   Surf, TopSpin, Tower, Track,
 } from './models/rides';
 
@@ -13,6 +13,7 @@ function Model({ a }: { a: Attraction }) {
   switch (a.model) {
     case 'spinner': return <Spinner a={a} />;
     case 'ferris': return <Ferris a={a} />;
+    case 'hoppla': return <Hoppla a={a} />;
     case 'tower': return <Tower a={a} />;
     case 'frisbee': return <Frisbee a={a} />;
     case 'topspin': return <TopSpin a={a} />;

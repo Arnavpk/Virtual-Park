@@ -11,6 +11,7 @@ export type RideType = 'family' | 'high' | 'mid' | 'kids';
 export type ModelName =
   | 'spinner'
   | 'ferris'
+  | 'hoppla'
   | 'tower'
   | 'frisbee'
   | 'topspin'
