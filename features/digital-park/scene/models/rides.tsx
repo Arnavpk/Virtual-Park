@@ -14,7 +14,8 @@ const acc = (a: Attraction) => a.opts.accent ?? C.sun;
  * Flat rides: a hub with arms and cars that goes round. Covers most family and
  * kids rides. Rides that have been remodelled from photos get their own model
  * through `variant`: 'jet' is Junior Jet, 'skyrace' is Sky Race, 'balloon' is
- * Samba Balloon, 'tubs' is Water Mania.
+ * Samba Balloon, 'tubs' is Water Mania, 'bike' is Magic Bike, 'pod' is Wave
+ * Blaster, 'kite' is Kite Flyer, 'plane' is Air Race.
  */
 export function Spinner({ a }: P) {
   if (a.opts.variant === 'jet') return <JuniorJet a={a} />;
@@ -24,6 +25,7 @@ export function Spinner({ a }: P) {
   if (a.opts.variant === 'bike') return <MagicBike a={a} />;
   if (a.opts.variant === 'pod') return <WaveBlaster a={a} />;
   if (a.opts.variant === 'kite') return <KiteFlyer a={a} />;
+  if (a.opts.variant === 'plane') return <AirRace a={a} />;
   return <SpinnerBase a={a} />;
 }
 
@@ -884,6 +886,11 @@ export function JumpinStar({ a }: P) {
   );
 }
 
+/**
+ * Magic Bike: proportions read off the park's photos, as fractions of
+ * `opts.r`. Sized so the bikes stay inside the footprint: the paving comes to
+ * 4.5 units from the ride's centre.
+ */
 export const BIKE = {
   pivotRadius: 0.13, // where the arms join the tower
   pivotHeight: 0.6, //  arm pivot height
@@ -1048,6 +1055,11 @@ export function MagicBike({ a }: P) {
   );
 }
 
+/**
+ * Wave Blaster: proportions read off the park's photo, as fractions of
+ * `opts.r`. Sized so the cars stay inside the footprint: the paving comes to
+ * 4.5 units from the ride's centre.
+ */
 export const WAVE = {
   pivotRadius: 0.13, // where the arms join the column
   pivotHeight: 0.16, // arm pivot height
@@ -1319,6 +1331,265 @@ export function KiteFlyer({ a }: P) {
   );
 }
 
+/**
+ * Air Race: proportions read off the park's photo, as fractions of `opts.r`.
+ */
+export const AIRRACE = {
+  hub: 1.0, //         hub height
+  arm: 0.8, //         arm length, hanging down and out from the hub
+  droop: 32, //        arm slope below horizontal, degrees
+  lean: 14, //         degrees the turning star rocks to each side (assumed)
+  rock: 8, //          seconds per rock there and back (assumed)
+  bank: 75, //         how far the planes bank at full speed, degrees (photo shows ~70)
+  bankTime: 5, //      seconds per bank there and back (assumed)
+  turn: 7, //          seconds per turn at full speed (assumed)
+  cycle: { load: 10, build: 8, run: 35, ease: 8 } as RideCycle, // seconds (assumed)
+};
+
+const AR = {
+  column: '#2A56B8',
+  base: '#E5383B',
+  arm: '#2F6FD6',
+  balloons: ['#E5383B', '#3DAA5C', '#2F8FE0', '#FFC53D'],
+  post: '#F4F4F0',
+  postTip: '#FFC53D',
+  plane: '#2A56B8',
+  stripe: '#F4F4F0',
+  prop: '#FFC53D',
+  spinner: '#C7CDD4',
+  seat: '#22252B',
+  seatTrim: '#3DAA5C',
+};
+
+/** One Air Race plane, nose to +z (direction of travel), wings out along x, centred on its roll axis. */
+function airPlaneParts(): { boxes: BoxItem[]; discs: BoxItem[] } {
+  const H: [number, number, number] = [Math.PI / 2, 0, 0];
+  const boxes: BoxItem[] = [
+    { p: [0, -0.18, 0.1], r: 0, s: [0.9, 0.08, 2.4], c: AR.stripe }, //    white belly stripe
+    { p: [0, -0.05, 0.3], r: 0, s: [2.6, 0.1, 0.7], c: AR.plane }, //      wings
+    { p: [0, -0.02, 0.3], r: 0, s: [2.0, 0.04, 0.4], c: AR.stripe },
+    { p: [0, 0.05, -1.25], r: 0, s: [1.0, 0.08, 0.35], c: AR.plane }, //   tailplane
+    { p: [0, 0.4, -1.25], r: 0, s: [0.08, 0.7, 0.5], c: AR.plane }, //     fin
+    { p: [0, 0, 1.52], r: 0, s: [0.1, 1.1, 0.06], c: AR.prop }, //         propeller
+    { p: [0, 0, 1.52], r: 0, s: [1.1, 0.1, 0.06], c: AR.prop },
+  ];
+  for (const z of [0.55, -0.05]) for (const x of [-0.22, 0.22]) {
+    boxes.push({ p: [x, 0.42, z - 0.12], r: 0, s: [0.34, 0.5, 0.1], c: AR.seat });
+    boxes.push({ p: [x, 0.62, z - 0.05], r: 0, s: [0.36, 0.08, 0.2], c: AR.seatTrim });
+  }
+  const discs: BoxItem[] = [
+    { p: [0, 0, 0.1], r: 0, s: [0.9, 2.6, 0.75], c: AR.plane, e: H }, //   fuselage
+    { p: [0, 0, 1.45], r: 0, s: [0.5, 0.25, 0.5], c: AR.spinner, e: H }, // nose spinner
+  ];
+  return { boxes, discs };
+}
+
+/**
+ * Air Race (#26): blue planes with yellow propellers and four seats each hang
+ * on long blue arms from a hub crowned with balloons. The star turns and rocks
+ * from side to side, and the planes bank steeply as they fly round. They load
+ * level, at the bottom of their arms.
+ */
+export function AirRace({ a }: P) {
+  const { r = 5.5, arms = 6 } = a.opts;
+  const Hh = AIRRACE.hub * r;
+  const La = AIRRACE.arm * r;
+  const dr = rad(AIRRACE.droop);
+  const rock = useRef<THREE.Group>(null);
+  const spin = useRef<THREE.Group>(null);
+  const planes = useRef<(THREE.Group | null)[]>([]);
+  const time = useRef(cycleOffset(a.position[0], a.position[2]));
+  useFrame((_, dt) => {
+    if (!rock.current || !spin.current) return;
+    const step = Math.min(dt, 0.1);
+    time.current += step;
+    const t = time.current;
+    const k = cycleIntensity(t, AIRRACE.cycle);
+    spin.current.rotation.y -= step * k * ((Math.PI * 2) / AIRRACE.turn);
+    rock.current.rotation.x = rad(AIRRACE.lean) * k * Math.sin((t / AIRRACE.rock) * Math.PI * 2);
+    for (let i = 0; i < arms; i++) planes.current[i]?.rotation.set(0, 0, rad(AIRRACE.bank) * k * Math.sin((t / AIRRACE.bankTime) * Math.PI * 2 + i * 0.7));
+  });
+
+  const parts = useMemo(() => {
+    const armBox: BoxItem[] = [
+      { p: [La / 2, 0, 0], r: 0, s: [La, 0.18, 0.7], c: AR.arm },
+      { p: [La / 2, -0.12, 0], r: 0, s: [La, 0.08, 0.5], c: AR.post },
+    ];
+    const balloons: BoxItem[] = AR.balloons.map((c, j) => {
+      const t = (j / AR.balloons.length) * Math.PI * 2;
+      return { p: [Math.cos(t) * 0.45, 1.6 + (j % 2) * 0.3, Math.sin(t) * 0.45] as [number, number, number], r: 0, s: [0.8, 0.95, 0.8] as [number, number, number], c };
+    });
+    return { armBox, balloons, plane: airPlaneParts() };
+  }, [La]);
+
+  return (
+    <group>
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[7, 7, 0.06, 32]} />
+        <meshLambertMaterial color={C.kerb} />
+      </mesh>
+      {/* Fixed: base and column */}
+      <mesh position={[0, 0.3, 0]}>
+        <cylinderGeometry args={[1.0, 1.2, 0.6, 12]} />
+        <meshLambertMaterial color={AR.base} flatShading />
+      </mesh>
+      <mesh position={[0, Hh / 2, 0]}>
+        <cylinderGeometry args={[0.35, 0.45, Hh, 10]} />
+        <meshLambertMaterial color={AR.column} flatShading />
+      </mesh>
+      {/* Moving: the star rocks and turns; the planes bank on their arms */}
+      <group position={[0, Hh, 0]}>
+        <group ref={rock}>
+          <group ref={spin}>
+            <mesh>
+              <cylinderGeometry args={[0.7, 0.7, 0.6, 12]} />
+              <meshLambertMaterial color={AR.arm} flatShading />
+            </mesh>
+            <Box size={[0.12, 1.2, 0.12]} position={[0, 0.9, 0]} color={AR.post} />
+            <InstancedBoxes items={parts.balloons} shape="ball" />
+            {Array.from({ length: arms }, (_, i) => (
+              <group key={i} rotation={[0, (i / arms) * Math.PI * 2, 0]}>
+                <group rotation={[0, 0, -dr]}>
+                  <InstancedBoxes items={parts.armBox} />
+                </group>
+                <group
+                  ref={(g) => {
+                    planes.current[i] = g;
+                  }}
+                  position={[0.3 + La * Math.cos(dr), -La * Math.sin(dr) - 0.5, 0]}
+                >
+                  <InstancedBoxes items={parts.plane.boxes} />
+                  <InstancedBoxes items={parts.plane.discs} shape="disc" />
+                </group>
+              </group>
+            ))}
+          </group>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+/**
+ * Flipping Arm: proportions read off the park's photo, as fractions of the
+ * tower height `opts.h`. Sized so the cages stay inside the footprint: the
+ * paving comes to 3.5 units from the ride's centre.
+ */
+export const FLIP = {
+  hub: 0.54, //        hub height
+  arm: 0.35, //        hub to each cage's pivot
+  cages: 3,
+  turns: 6, //         full turns of the star per ride (assumed)
+  flip: 0.7, //        how far the cages turn with the star at full speed (0 = always level; assumed)
+  cycle: { load: 12, build: 6, run: 22, ease: 8 } as RideCycle, // seconds (assumed)
+};
+
+const FA = {
+  tower: '#2F6FD6',
+  ladder: '#1F3A6E',
+  lights: ['#E5383B', '#F28A1E', '#FFC53D', '#E65AA0', '#7B6CF6'],
+  base: '#2A56B8',
+  hub: '#D7262E',
+  arm: '#B5302A',
+  cage: '#C8362D',
+  bar: '#F4F4F0',
+  seat: '#22252B',
+};
+
+/**
+ * Flipping Arm (#25): a blue tower with a lit rainbow panel at the top and a
+ * ladder up its side. On its front a big red hub carries a three-armed star
+ * with an open red cage of two seats at each tip. The star turns right round,
+ * faster and faster, while the cages flip over; it stops with a cage at the
+ * bottom to load.
+ */
+export function FlippingArm({ a }: P) {
+  const { h = 6.5 } = a.opts;
+  const Hp = FLIP.hub * h;
+  const R = FLIP.arm * h;
+  const n = FLIP.cages;
+  const star = useRef<THREE.Group>(null);
+  const cages = useRef<(THREE.Group | null)[]>([]);
+  const time = useRef(cycleOffset(a.position[0], a.position[2]));
+  const per = FLIP.cycle.build / 2 + FLIP.cycle.run + FLIP.cycle.ease / 2;
+  useFrame((_, dt) => {
+    if (!star.current) return;
+    time.current += Math.min(dt, 0.1);
+    const t = time.current;
+    const th = ((Math.PI * 2 * FLIP.turns) / per) * cycleTravel(t, FLIP.cycle);
+    const k = cycleIntensity(t, FLIP.cycle);
+    star.current.rotation.z = th;
+    for (const c of cages.current) c?.rotation.set(0, 0, -th * (1 - FLIP.flip * k));
+  });
+
+  const parts = useMemo(() => {
+    const tower: BoxItem[] = [
+      { p: [0, h / 2, -0.6], r: 0, s: [0.7, h, 0.6], c: FA.tower },
+      { p: [0.42, h * 0.45, -0.6], r: 0, s: [0.12, h * 0.85, 0.3], c: FA.ladder },
+      { p: [0, 0.35, -0.6], r: 0, s: [1.4, 0.7, 1.2], c: FA.base },
+    ];
+    for (let j = 0; j < 10; j++) tower.push({ p: [0, h * 0.72 + j * (h * 0.27) / 10, -0.28], r: 0, s: [0.6, (h * 0.27) / 10, 0.04], c: FA.lights[j % FA.lights.length] });
+    const arms: BoxItem[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = -Math.PI / 2 + (i / n) * Math.PI * 2;
+      arms.push({ p: [Math.cos(t) * R * 0.5, Math.sin(t) * R * 0.5, 0], r: t, s: [R, 0.3, 0.3], c: FA.arm });
+    }
+    // One cage, local to its pivot, hanging below it: floor, back, side bars, two seats facing out (+z)
+    const cage: BoxItem[] = [
+      { p: [0, 0, 0.3], r: 0, s: [0.14, 0.14, 0.6], c: FA.arm }, //      pin from the arm tip
+      { p: [0, -0.15, 0.55], r: 0, s: [0.12, 0.3, 0.12], c: FA.cage }, //  hanger
+      { p: [0, -0.75, 0.55], r: 0, s: [1.3, 0.12, 0.95], c: FA.cage }, //  floor
+      { p: [0, -0.35, 0.1], r: 0, s: [1.3, 0.8, 0.1], c: FA.cage }, //     back
+      { p: [0, 0.05, 0.55], r: 0, s: [1.3, 0.06, 0.06], c: FA.bar }, //    top bar
+    ];
+    for (const x of [-0.62, 0.62]) cage.push({ p: [x, -0.35, 0.55], r: 0, s: [0.06, 0.8, 0.9], c: FA.cage });
+    for (const x of [-0.3, 0.3]) {
+      cage.push({ p: [x, -0.5, 0.35], r: 0, s: [0.45, 0.35, 0.12], c: FA.seat });
+      cage.push({ p: [x, -0.62, 0.55], r: 0, s: [0.45, 0.08, 0.35], c: FA.seat });
+      cage.push({ p: [x, -0.25, 0.5], r: 0, s: [0.3, 0.25, 0.15], c: FA.seat });
+    }
+    return { tower, arms, cage };
+  }, [h, R, n]);
+
+  return (
+    <group>
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[3.3, 3.3, 0.06, 28]} />
+        <meshLambertMaterial color={C.kerb} />
+      </mesh>
+      {/* Fixed: tower, ladder, light panel and base */}
+      <InstancedBoxes items={parts.tower} />
+      {/* Moving: the star turns on the red hub; the cages flip on their pivots */}
+      <group position={[0, Hp, 0]}>
+        <group ref={star}>
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.15]}>
+            <cylinderGeometry args={[0.6, 0.6, 0.4, 14]} />
+            <meshLambertMaterial color={FA.hub} flatShading />
+          </mesh>
+          <mesh position={[0, 0, 0.15]}>
+            <sphereGeometry args={[0.45, 12, 8]} />
+            <meshLambertMaterial color={FA.hub} flatShading />
+          </mesh>
+          <InstancedBoxes items={parts.arms} />
+          {Array.from({ length: n }, (_, i) => {
+            const t = -Math.PI / 2 + (i / n) * Math.PI * 2;
+            return (
+              <group
+                key={i}
+                ref={(g) => {
+                  cages.current[i] = g;
+                }}
+                position={[Math.cos(t) * R, Math.sin(t) * R, 0]}
+              >
+                <InstancedBoxes items={parts.cage} />
+              </group>
+            );
+          })}
+        </group>
+      </group>
+    </group>
+  );
+}
 
 /** The original shared spinner, used by the flat rides not yet remodelled. */
 function SpinnerBase({ a }: P) {
@@ -1384,6 +1655,11 @@ function SpinnerBase({ a }: P) {
   );
 }
 
+/**
+ * Mini Ferris Wheel: proportions read off the park's photo, as fractions of
+ * `opts.r`. Sized so the low cars stay inside the footprint: the paving comes
+ * to 4.5 units from the ride's centre.
+ */
 export const FERRIS = {
   radius: 0.58, //    hub to each car's hanging pin
   hang: 0.35, //      pin down to the car's centre, world units
@@ -1530,7 +1806,8 @@ export function Ferris({ a }: P) {
  * `r` turns each about the z axis; `e` (x, y, z Euler angles) replaces it when
  * given. `s` scales the unit shape: a 1×1×1 box, a disc/cylinder of diameter
  * 1 and height 1 along y, a ring of diameter 1 in the xy plane, a ball of
- * diameter 1, or a five-pointed star 1 across in the xy plane, 1 deep in z.
+ * diameter 1, a five-pointed star 1 across in the xy plane, 1 deep in z, or a
+ * diamond (a four-sided disc, corners on the x and z axes).
  */
 type BoxItem = { p: [number, number, number]; r: number; s: [number, number, number]; c: string; e?: [number, number, number] };
 function InstancedBoxes({ items, shape = 'box' }: { items: BoxItem[]; shape?: 'box' | 'disc' | 'ring' | 'ball' | 'star' | 'diamond' }) {
@@ -1769,68 +2046,17 @@ export function Hoppla({ a }: P) {
   );
 }
 
-/** Tall towers: Sky Screamer (swing star at the top), Z Force (a ring of seats riding up and down). `top: 'hop'` is Jump'in Star. */
+/** Tall towers: `top: 'hop'` is Jump'in Star, `top: 'star'` is Sky Screamer, anything else is Z Force. */
 export function Tower({ a }: P) {
   if (a.opts.top === 'hop') return <JumpinStar a={a} />;
   if (a.opts.top === 'star') return <SkyScreamer a={a} />;
-  return <TowerBase a={a} />;
+  return <ZForce a={a} />;
 }
 
-function TowerBase({ a }: P) {
-  const { h = 20, r = 0.7, top = 'ring', rainbow, base } = a.opts;
-  const car = useRef<THREE.Group>(null);
-  const phase = useMemo(() => a.position[0], [a]);
-  useFrame(({ clock }, dt) => {
-    if (!car.current) return;
-    if (top === 'star') car.current.rotation.y += dt * 0.9;
-    else car.current.position.y = h * (0.5 + 0.38 * Math.sin(clock.elapsedTime * 0.6 + phase));
-  });
-  const bands = rainbow ? 8 : 1;
-  return (
-    <group>
-      {base ? (
-        <mesh position={[0, 0.5, 0]}>
-          <cylinderGeometry args={[base, base + 0.4, 1, 16]} />
-          <meshLambertMaterial color={C.rim} />
-        </mesh>
-      ) : (
-        <Pad r={Math.max(3, h * 0.28)} inner={C.lawn} />
-      )}
-      {Array.from({ length: bands }, (_, i) => (
-        <mesh key={i} position={[0, (h / bands) * (i + 0.5), 0]}>
-          <cylinderGeometry args={[r, r * 1.15, h / bands, 8]} />
-          <meshLambertMaterial color={rainbow ? RAINBOW[i % RAINBOW.length] : col(a)} flatShading />
-        </mesh>
-      ))}
-      <mesh position={[0, h + 0.6, 0]}>
-        <sphereGeometry args={[r * 1.6, 8, 6]} />
-        <meshLambertMaterial color={acc(a)} flatShading />
-      </mesh>
-      <group ref={car} position={[0, top === 'star' ? h - 1.5 : h * 0.5, 0]}>
-        {top === 'star' ? (
-          Array.from({ length: 10 }, (_, i) => {
-            const t = (i / 10) * Math.PI * 2;
-            const reach = h * 0.2;
-            return (
-              <group key={i} rotation={[0, t, 0]}>
-                <Strut from={[0, 0, 0]} to={[reach, 0.6, 0]} thickness={0.12} color={acc(a)} />
-                <Strut from={[reach, 0.6, 0]} to={[reach + 0.8, -2.2, 0]} thickness={0.06} color={C.steel} />
-                <Box size={[0.5, 0.5, 0.5]} position={[reach + 0.8, -2.4, 0]} color={RAINBOW[i % RAINBOW.length]} />
-              </group>
-            );
-          })
-        ) : (
-          <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[r + 1.1, 0.45, 6, 12]} />
-            <meshLambertMaterial color={acc(a)} flatShading />
-          </mesh>
-        )}
-      </group>
-    </group>
-  );
-}
-
-/** Giant Frisbee: an A-frame with a big disc swinging underneath. */
+/**
+ * Giant Frisbee: proportions read off the park's photo and the usual layout of
+ * this ride, as fractions of the pivot height `opts.h`.
+ */
 export const FRISBEE = {
   arm: 0.92, //        pivot to the disc
   disc: 0.24, //       disc radius
@@ -1944,8 +2170,10 @@ export function Frisbee({ a }: P) {
   );
 }
 
-
-/** Top Spin: two towers with a gondola carried round between them on a pair of arms. */
+/**
+ * Sky Screamer: proportions read off the park's photo and the usual layout of
+ * a star-flyer, as fractions of the tower height `opts.h`.
+ */
 export const SCREAMER = {
   star: 0.13, //       radius the cables hang from
   cable: 0.21, //      cable length
@@ -2236,6 +2464,12 @@ export function TopSpin({ a }: P) {
   );
 }
 
+/**
+ * Seconds-at-full-speed travelled since the ride first started: the integral
+ * of cycleIntensity. A ride that turns at `w` rad/s at full speed has turned
+ * w × cycleTravel(t) by time t, and each cycle adds exactly the same amount,
+ * so it always stops in the same place for loading.
+ */
 function cycleTravel(t: number, c: RideCycle): number {
   const L = c.load + c.build + c.run + c.ease;
   const per = c.build / 2 + c.run + c.ease / 2;
@@ -2498,90 +2732,277 @@ export function TurboForce({ a }: P) {
   );
 }
 
-/** Space Trainer and Turbo Force have their own models; Flipping Arm uses the original. */
+/** Space Trainer (`variant: 'gyro'`), Turbo Force (`variant: 'turbo'`) and Flipping Arm each have their own model. */
 export function Arm({ a }: P) {
   if (a.opts.variant === 'gyro') return <SpaceTrainer a={a} />;
   if (a.opts.variant === 'turbo') return <TurboForce a={a} />;
-  return <ArmBase a={a} />;
+  return <FlippingArm a={a} />;
 }
 
+/**
+ * Mega Disco: proportions read off the park's photo, as fractions of `opts.len`
+ * (the track length in the park data).
+ */
+export const DISCO = {
+  rise: 6.5, //        how high the track's ends curve up, world units
+  disc: 0.18, //       disc radius (× len)
+  seats: 28,
+  travel: 0.55, //     how far along the track the disc runs, as a fraction of half its length
+  period: 6.5, //      seconds per run there and back (assumed)
+  spin: 6, //          seconds per turn of the disc at full speed (assumed)
+  cycle: { load: 12, build: 10, run: 25, ease: 10 } as RideCycle, // seconds (assumed)
+};
 
-/** The original arm: a long arm turning on a pylon, cabins at the ends. Used by Flipping Arm. */
-function ArmBase({ a }: P) {
-  const { h = 10, variant } = a.opts;
-  const arm = useRef<THREE.Group>(null);
+const MD = {
+  frame: '#F2C230',
+  rack: '#8D939C',
+  tassel: ['#2A56B8', '#D7262E'],
+  disc: '#2F8FE0',
+  wave: '#F2C230',
+  hub: ['#2F8FE0', '#F2C230'],
+  dome: '#F2C230',
+  cone: '#2F8FE0',
+  seat: '#2A8FB8',
+  rider: '#22252B',
+};
+
+/**
+ * Mega Disco (#20): a yellow U-shaped track with ladder sides, a grey rack down
+ * the middle and blue and red tassels, its ends curving up high on yellow
+ * A-frames. A big blue disc patterned with yellow waves, with a ring of seats
+ * facing out and a striped hub topped by a blue cone, rides it: it loads at
+ * the bottom, then runs back and forth, higher each time, spinning as it goes.
+ */
+export function Disco({ a }: P) {
+  const { len = 17 } = a.opts;
+  const half = len / 2;
+  const Rd = DISCO.disc * len;
+  const yAt = (x: number) => 1.2 + DISCO.rise * Math.pow(Math.min(1, Math.abs(x) / half), 3);
+  const slope = (x: number) => (Math.sign(x) * DISCO.rise * 3 * Math.pow(Math.min(1, Math.abs(x) / half), 2)) / half;
+  const lift = 1.6; // disc stands this far above the track on its bogie, clear of the curve
+  const carriage = useRef<THREE.Group>(null);
+  const spin = useRef<THREE.Group>(null);
+  const time = useRef(cycleOffset(a.position[0], a.position[2]));
   useFrame((_, dt) => {
-    if (arm.current) arm.current.rotation.z += dt * (variant === 'gyro' ? 0.9 : 0.6);
+    if (!carriage.current || !spin.current) return;
+    const step = Math.min(dt, 0.1);
+    time.current += step;
+    const t = time.current;
+    const k = cycleIntensity(t, DISCO.cycle);
+    const x = k * DISCO.travel * half * Math.sin((t / DISCO.period) * Math.PI * 2);
+    carriage.current.position.set(x, yAt(x) + lift, 0);
+    carriage.current.rotation.z = Math.atan(slope(x));
+    spin.current.rotation.y += step * k * ((Math.PI * 2) / DISCO.spin);
   });
-  const pivot = h * 0.58;
+
+  const parts = useMemo(() => {
+    const frame: BoxItem[] = [];
+    const grey: BoxItem[] = [];
+    const n = 34;
+    for (let i = 0; i < n; i++) {
+      const x0 = -half + (2 * half * i) / n;
+      const x1 = x0 + (2 * half) / n;
+      const xm = (x0 + x1) / 2;
+      const y0 = yAt(x0);
+      const y1 = yAt(x1);
+      const ym = (y0 + y1) / 2;
+      const segLen = Math.hypot(x1 - x0, y1 - y0) + 0.02;
+      const ang = Math.atan2(y1 - y0, x1 - x0);
+      for (const z of [-0.9, 0.9]) {
+        frame.push({ p: [xm, ym, z], r: ang, s: [segLen, 0.22, 0.16], c: MD.frame }); //       side beam
+        frame.push({ p: [xm, ym - 0.45, z], r: ang, s: [segLen, 0.12, 0.12], c: MD.frame }); // lower chord
+        if (i % 2 === 0) frame.push({ p: [xm, ym - 0.75, z * 1.02], r: 0, s: [0.12, 0.35, 0.04], c: MD.tassel[i % 4 === 0 ? 0 : 1] });
+      }
+      if (i % 2 === 0) frame.push({ p: [xm, ym + 0.05, 0], r: ang, s: [0.12, 0.1, 1.8], c: MD.frame }); // rungs
+      grey.push({ p: [xm, ym + 0.14, 0], r: ang, s: [segLen, 0.08, 0.4], c: MD.rack });
+    }
+    // A-frame supports under the track
+    for (const x of [-half * 0.75, -half * 0.35, half * 0.35, half * 0.75]) {
+      const y = yAt(x) - 0.5;
+      for (const z of [-1, 1]) {
+        const dz = z * 1.8;
+        const len2 = Math.hypot(y, dz - z * 0.9);
+        frame.push({ p: [x, y / 2, (dz + z * 0.9) / 2], r: 0, s: [0.2, len2, 0.2], c: MD.frame, e: [Math.atan2(z * 0.9 - dz, y), 0, 0] });
+      }
+    }
+    // Disc, local to the spinning carriage
+    const seats: BoxItem[] = [];
+    for (let j = 0; j < DISCO.seats; j++) {
+      const t = (j / DISCO.seats) * Math.PI * 2;
+      const at = (rr: number, y: number): [number, number, number] => [Math.cos(t) * rr, y, -Math.sin(t) * rr];
+      seats.push({ p: at(Rd - 0.35, 0.45), r: 0, s: [0.12, 0.6, 0.45], c: MD.seat, e: [0, t, 0] });
+      seats.push({ p: at(Rd - 0.15, 0.2), r: 0, s: [0.4, 0.08, 0.45], c: MD.seat, e: [0, t, 0] });
+      seats.push({ p: at(Rd - 0.2, 0.5), r: 0, s: [0.2, 0.35, 0.3], c: MD.rider, e: [0, t, 0] });
+    }
+    seats.push({ p: [0, -lift / 2, 0], r: 0, s: [0.4, lift, 0.4], c: MD.rack }); // bogie post down to the track
+    return { frame, grey, seats };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [half, Rd]);
+
+  const discTop = useMemo(() => striped(new THREE.CylinderGeometry(Rd, Rd * 0.97, 0.18, 32), [MD.disc, MD.disc, MD.wave], 18), [Rd]);
+  const drum = useMemo(() => striped(new THREE.CylinderGeometry(0.85, 0.85, 0.8, 16, 1, true), MD.hub, 16), []);
+
   return (
     <group>
-      <Pad r={Math.max(3.2, h * 0.42)} />
-      <Strut from={[-1.4, 0, 0.9]} to={[0, pivot, 0.5]} thickness={0.5} color={C.steel} />
-      <Strut from={[1.4, 0, 0.9]} to={[0, pivot, 0.5]} thickness={0.5} color={C.steel} />
-      <group ref={arm} position={[0, pivot, 0]}>
-        {variant === 'gyro' ? (
-          <>
-            <mesh>
-              <torusGeometry args={[h * 0.36, 0.3, 6, 16]} />
-              <meshLambertMaterial color={col(a)} flatShading />
-            </mesh>
-            <Box size={[h * 0.72, 0.3, 0.3]} color={acc(a)} />
-            <Box size={[1.6, 1.2, 1.2]} color={acc(a)} />
-          </>
-        ) : (
-          <>
-            <Box size={[0.6, h * 0.95, 0.6]} color={col(a)} />
-            {[-1, 1].map((s) => (
-              <Box key={s} size={[2.2, 1.1, 1.3]} position={[0, s * h * 0.47, 0]} color={acc(a)} />
-            ))}
-          </>
-        )}
+      {/* Fixed: the track and its supports */}
+      <InstancedBoxes items={parts.frame} />
+      <InstancedBoxes items={parts.grey} />
+      {/* Moving: the disc runs along the track, tilting with it, and spins */}
+      <group ref={carriage} position={[0, yAt(0) + lift, 0]}>
+        <group ref={spin}>
+          <mesh geometry={discTop}>
+            <meshLambertMaterial vertexColors flatShading />
+          </mesh>
+          <mesh geometry={drum} position={[0, 0.5, 0]}>
+            <meshLambertMaterial vertexColors flatShading side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0, 0.95, 0]}>
+            <sphereGeometry args={[0.55, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshLambertMaterial color={MD.dome} flatShading />
+          </mesh>
+          <mesh position={[0, 1.55, 0]} rotation={[Math.PI, 0, 0]}>
+            <coneGeometry args={[0.9, 0.6, 12, 1, true]} />
+            <meshLambertMaterial color={MD.cone} flatShading side={THREE.DoubleSide} />
+          </mesh>
+          <InstancedBoxes items={parts.seats} />
+        </group>
       </group>
     </group>
   );
 }
 
-/** Mega Disco: a spinning disc that rides back and forth along a dipped track. */
-export function Disco({ a }: P) {
-  const { len = 16 } = a.opts;
-  const disc = useRef<THREE.Group>(null);
-  const half = len / 2;
-  const yAt = (x: number) => 0.8 + 3.2 * Math.pow(Math.abs(x) / half, 2) + 0.9 * Math.exp(-(x * x) / 3);
-  const pts = useMemo<[number, number, number][]>(() => Array.from({ length: 13 }, (_, i) => {
-    const x = -half + (i / 12) * len;
-    return [x, yAt(x), 0];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [len]);
-  useFrame(({ clock }, dt) => {
-    if (!disc.current) return;
-    const x = Math.sin(clock.elapsedTime * 0.8) * (half - 1.5);
-    disc.current.position.set(x, yAt(x) + 0.7, 0);
-    disc.current.rotation.y += dt * 2;
+/**
+ * Z Force: proportions read off the park's photos, as fractions of the tower
+ * height `opts.h`.
+ */
+export const ZF = {
+  tower: 0.6, //       tower half-width, world units
+  top: 0.86, //        carriage height at the top (× h)
+  load: 0.6, //        carriage height while loading, world units
+  seats: 20,
+  climb: 25, //        seconds to climb (assumed)
+  hold: 3, //          seconds held at the top (assumed)
+  freeFall: 0.6, //    share of the drop that is free fall before the brakes (assumed)
+  wait: 12, //         seconds at the bottom for loading
+};
+
+const ZC = {
+  low: '#5FA650',
+  mid: '#E3B23C',
+  high: '#D7462E',
+  brace: '#C9A23A',
+  carriage: '#D7262E',
+  sign: '#2F8FE0',
+  arrow: '#F4F4F0',
+  seat: '#3A3F4A',
+  harness: '#5B6470',
+  rider: '#22252B',
+  ring: '#B5302A',
+};
+
+/** Z Force's carriage height above its loading height, in world units, at time t into its cycle (rise is the full travel). */
+export function zforceHeight(t: number, rise: number): number {
+  const g = 9.81 / 1.45; // gravity in world units per second squared
+  const fall = rise * ZF.freeFall;
+  const tFall = Math.sqrt((2 * fall) / g);
+  const v = g * tFall;
+  const brake = rise - fall;
+  const tBrake = (2 * brake) / v;
+  const L = ZF.wait + ZF.climb + ZF.hold + tFall + tBrake;
+  let u = ((t % L) + L) % L;
+  if (u < ZF.wait) return 0;
+  u -= ZF.wait;
+  if (u < ZF.climb) {
+    const s = u / ZF.climb;
+    return rise * s * s * (3 - 2 * s);
+  }
+  u -= ZF.climb;
+  if (u < ZF.hold) return rise;
+  u -= ZF.hold;
+  if (u < tFall) return rise - 0.5 * g * u * u;
+  u -= tFall;
+  if (u < tBrake) return brake - (v * u - (0.5 * v * u * u) / tBrake);
+  return 0;
+}
+
+/**
+ * Z Force (#24): a square lattice tower, green at the bottom, yellow in the
+ * middle and red at the top, with a ring sign on the top. An octagonal red
+ * carriage with blue "Z FORCE" panels carries a ring of seats facing out, legs
+ * dangling. It climbs slowly to the top, holds, free-falls and brakes hard
+ * near the bottom, then waits there for the next riders.
+ */
+export function ZForce({ a }: P) {
+  const { h = 24 } = a.opts;
+  const tw = ZF.tower;
+  const yTop = ZF.top * h;
+  const rise = yTop - ZF.load;
+  const car = useRef<THREE.Group>(null);
+  const time = useRef(cycleOffset(a.position[0], a.position[2]));
+  useFrame((_, dt) => {
+    if (!car.current) return;
+    time.current += Math.min(dt, 0.1);
+    car.current.position.y = ZF.load + zforceHeight(time.current, rise);
   });
+
+  const parts = useMemo(() => {
+    const tower: BoxItem[] = [];
+    const colour = (y: number) => (y < h * 0.4 ? ZC.low : y < h * 0.8 ? ZC.mid : ZC.high);
+    const stepY = 1.0;
+    for (let y = 0; y < h; y += stepY) {
+      const yc = y + stepY / 2;
+      for (const [sx, sz] of [
+        [1, 1],
+        [1, -1],
+        [-1, 1],
+        [-1, -1],
+      ])
+        tower.push({ p: [sx * tw, yc, sz * tw], r: 0, s: [0.14, stepY + 0.01, 0.14], c: colour(yc) });
+      const len = Math.hypot(stepY, 2 * tw);
+      const ang = Math.atan2(stepY, 2 * tw) * (Math.round(y) % 2 ? 1 : -1);
+      for (const s of [-1, 1]) {
+        tower.push({ p: [0, yc, s * tw], r: 0, s: [len, 0.06, 0.06], c: ZC.brace, e: [0, 0, ang] });
+        tower.push({ p: [s * tw, yc, 0], r: 0, s: [0.06, 0.06, len], c: ZC.brace, e: [ang, 0, 0] });
+      }
+    }
+    tower.push({ p: [0, 0.2, 0], r: 0, s: [2 * tw + 0.8, 0.4, 2 * tw + 0.8], c: ZC.brace });
+    // The carriage: octagonal frame, sign panels with arrows, seats facing out
+    const carItems: BoxItem[] = [];
+    for (let j = 0; j < 8; j++) {
+      const t = ((j + 0.5) / 8) * Math.PI * 2;
+      const at = (rr: number, y: number): [number, number, number] => [Math.cos(t) * rr, y, -Math.sin(t) * rr];
+      const w = 2 * 1.35 * Math.tan(Math.PI / 8) + 0.02;
+      carItems.push({ p: at(1.35, 1.25), r: 0, s: [w, 1.1, 0.08], c: ZC.sign, e: [0, t + Math.PI / 2, 0] });
+      carItems.push({ p: at(1.4, 1.25), r: 0, s: [0.14, 0.6, 0.02], c: ZC.arrow, e: [0, t + Math.PI / 2, 0] });
+      carItems.push({ p: at(1.15, 0.0), r: 0, s: [w * 0.85, 0.18, 0.9], c: ZC.carriage, e: [0, t + Math.PI / 2, 0] });
+      carItems.push({ p: at(1.35, 1.88), r: 0, s: [w, 0.08, 0.08], c: ZC.carriage, e: [0, t + Math.PI / 2, 0] });
+    }
+    for (let j = 0; j < ZF.seats; j++) {
+      const t = (j / ZF.seats) * Math.PI * 2;
+      const at = (rr: number, y: number): [number, number, number] => [Math.cos(t) * rr, y, -Math.sin(t) * rr];
+      carItems.push({ p: at(1.45, 0.45), r: 0, s: [0.12, 0.65, 0.38], c: ZC.seat, e: [0, t, 0] });
+      carItems.push({ p: at(1.62, 0.55), r: 0, s: [0.22, 0.45, 0.32], c: ZC.harness, e: [0, t, 0] });
+      carItems.push({ p: at(1.85, -0.25), r: 0, s: [0.16, 0.6, 0.26], c: ZC.rider, e: [0, t, -0.5] }); // dangling legs
+    }
+    return { tower, carItems };
+  }, [h, tw]);
+
   return (
     <group>
-      <mesh position={[0, 0.05, 0]} scale={[1, 1, 0.42]}>
-        <cylinderGeometry args={[half + 1.5, half + 1.5, 0.1, 24]} />
-        <meshLambertMaterial color={C.mulch} />
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[3.2, 3.2, 0.06, 28]} />
+        <meshLambertMaterial color={C.kerb} />
       </mesh>
-      {[-0.7, 0.7].map((z) => (
-        <group key={z} position={[0, 0, z]}>
-          <Tube points={pts} color={col(a)} radius={0.2} segments={30} />
-        </group>
-      ))}
-      {[-half, -half / 2, half / 2, half].map((x) => (
-        <Box key={x} size={[0.3, yAt(x), 0.3]} position={[x, yAt(x) / 2, 0]} color={C.steel} />
-      ))}
-      <group ref={disc}>
-        <mesh>
-          <cylinderGeometry args={[2, 2, 0.5, 12]} />
-          <meshLambertMaterial color={acc(a)} flatShading />
-        </mesh>
-        <mesh position={[0, 0.5, 0]}>
-          <torusGeometry args={[1.7, 0.3, 5, 12]} />
-          <meshLambertMaterial color={C.sun} flatShading />
-        </mesh>
+      {/* Fixed: the tower and the ring sign on its top */}
+      <InstancedBoxes items={parts.tower} />
+      <mesh position={[0, h + 1.0, 0]}>
+        <torusGeometry args={[1.0, 0.1, 6, 24]} />
+        <meshLambertMaterial color={ZC.ring} />
+      </mesh>
+      <Box size={[1.6, 0.35, 0.08]} position={[0, h + 1.0, 0]} color={ZC.ring} />
+      {/* Moving: the carriage climbs and drops */}
+      <group ref={car} position={[0, ZF.load, 0]}>
+        <InstancedBoxes items={parts.carItems} />
       </group>
     </group>
   );
@@ -2765,6 +3186,10 @@ export function Ship({ a }: P) {
   );
 }
 
+/**
+ * Carnival Carousel: proportions read off the park's photo, as fractions of
+ * `opts.r`. The paving comes to 6.5 units from the ride's centre.
+ */
 export const CARNIVAL = {
   platform: 0.86, //  platform radius
   roof: 0.95, //      roof radius (above head height)
@@ -2969,50 +3394,187 @@ export function CarnivalCarousel({ a }: P) {
   );
 }
 
-/** Carnival Carousel has its own model; the Flying Carousel uses the original one. */
+/** Carnival Carousel (`variant: 'tent'`) and Flying Carousel each have their own model. */
 export function Carousel({ a }: P) {
   if (a.opts.variant === 'tent') return <CarnivalCarousel a={a} />;
-  return <CarouselBase a={a} />;
+  return <FlyingCarousel a={a} />;
 }
 
-/** Carnival Carousel (striped tent) and Flying Carousel (rainbow umbrella with hanging seats). */
-function CarouselBase({ a }: P) {
-  const { r = 5, h = 6, variant = 'tent' } = a.opts;
+/**
+ * Flying Carousel: proportions read off the park's photo and the usual layout
+ * of a wave swinger, as fractions of `opts.r`. Sized so nothing swings out low:
+ * the paving comes to 5 units from the ride's centre, so the canopy lifts
+ * before the chairs fly out.
+ */
+export const SWINGER = {
+  canopy: 0.8, //      radius the chains hang from
+  chain: 0.58, //      chain length
+  rest: 0.76, //       canopy height while loading (chairs just off the ground)
+  lift: 0.5, //        how far the canopy climbs when running
+  chairs: 24,
+  maxSwing: 45, //     degrees the chairs swing out at full speed (assumed)
+  tilt: 8, //          degrees the canopy leans to make the wave (photo shows it tilted)
+  wave: 9, //          seconds for the lean to go once round (assumed)
+  climb: 8, //         seconds to climb or come down (assumed)
+  cycle: { load: 10, build: 14, run: 30, ease: 14 } as RideCycle, // seconds (assumed)
+};
+
+const FCs = {
+  column: ['#E5383B', '#FFC53D', '#F4F4F0'],
+  panel: '#3B6FB6',
+  crown: '#FFC53D',
+  heart: '#E5532A',
+  picture: '#5A8FC8',
+  under: ['#E5383B', '#F28A1E', '#FFC53D', '#3DAA5C', '#2FC3DA', '#2A56B8', '#7B6CF6', '#E65AA0'],
+  chain: '#C7CDD4',
+  chair: '#2F6FD6',
+  rider: '#22252B',
+};
+
+/** How high the Flying Carousel's canopy is (0 = loading, 1 = top) at time t. */
+function swingerHeight(t: number): number {
+  const c = SWINGER.cycle;
+  const L = c.load + c.build + c.run + c.ease;
+  let u = ((t % L) + L) % L;
+  const s = (x: number) => {
+    const v = Math.max(0, Math.min(1, x));
+    return v * v * (3 - 2 * v);
+  };
+  if (u < c.load) return 0;
+  u -= c.load;
+  if (u < c.build + c.run) return s(u / SWINGER.climb);
+  u -= c.build + c.run;
+  return 1 - s((u - (c.ease - SWINGER.climb)) / SWINGER.climb);
+}
+
+/**
+ * Flying Carousel (#23): a wave swinger. A decorated red and yellow column
+ * carries a canopy with a yellow scalloped crown of painted pictures and a
+ * rainbow underside; 24 blue chairs hang on chains round its rim. The canopy
+ * climbs the column as it starts to turn, the chairs fly out, and the canopy
+ * leans and rolls so the chairs rise and fall in a wave. It comes back down to
+ * load.
+ */
+export function FlyingCarousel({ a }: P) {
+  const { r = 4.5 } = a.opts;
+  const Rc = SWINGER.canopy * r;
+  const Lc = SWINGER.chain * r;
+  const y0 = SWINGER.rest * r;
+  const dy = SWINGER.lift * r;
+  const n = SWINGER.chairs;
+  const top = useRef<THREE.Group>(null);
+  const lean = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
+  const chairs = useRef<(THREE.Group | null)[]>([]);
+  const swing = useRef(0);
+  const time = useRef(cycleOffset(a.position[0], a.position[2]));
+  const v = useMemo(() => new THREE.Vector3(), []);
+  const Y = useMemo(() => new THREE.Vector3(0, 1, 0), []);
+  const wMax = useMemo(() => Math.sqrt((Math.tan(rad(SWINGER.maxSwing)) * 9.81) / ((Rc + Lc * Math.sin(rad(SWINGER.maxSwing))) * 1.45)), [Rc, Lc]);
+
   useFrame((_, dt) => {
-    if (spin.current) spin.current.rotation.y += dt * 0.5;
+    if (!top.current || !lean.current || !spin.current) return;
+    const step = Math.min(dt, 0.1);
+    time.current += step;
+    const t = time.current;
+    const hf = swingerHeight(t);
+    const k = cycleIntensity(t, SWINGER.cycle);
+    top.current.position.y = y0 + dy * hf;
+    const w = k * wMax * hf * hf; // only turns properly once it has climbed
+    spin.current.rotation.y -= step * w;
+    const ps = (t / SWINGER.wave) * Math.PI * 2;
+    const tl = rad(SWINGER.tilt) * k * hf;
+    lean.current.rotation.set(tl * Math.cos(ps), 0, tl * Math.sin(ps));
+    const target = Math.min(rad(SWINGER.maxSwing), Math.atan((w * w * (Rc + Lc * Math.sin(swing.current)) * 1.45) / 9.81));
+    swing.current += (target - swing.current) * (1 - Math.exp(-step / 0.7));
+    if (target === 0 && swing.current < 1e-4) swing.current = 0;
+    // Chains hang under gravity from where each rim point really is.
+    lean.current.updateMatrix();
+    for (let i = 0; i < n; i++) {
+      const g = chairs.current[i];
+      if (!g) continue;
+      v.set(Rc, 0, 0).applyAxisAngle(Y, spin.current.rotation.y + (i / n) * Math.PI * 2).applyMatrix4(lean.current.matrix);
+      g.position.set(v.x, top.current.position.y + v.y, v.z);
+      g.rotation.set(0, Math.atan2(-v.z, v.x), swing.current);
+    }
   });
-  const tent = variant === 'tent';
-  const stripes = useMemo(() => (tent ? [col(a), acc(a)] : RAINBOW), [tent, a]);
+
+  const parts = useMemo(() => {
+    const column: BoxItem[] = [];
+    for (let row = 0; row < 3; row++)
+      for (let j = 0; j < 8; j++) {
+        const t = (j / 8) * Math.PI * 2;
+        column.push({ p: [Math.cos(t) * 0.86, 0.9 + row * 1.0, -Math.sin(t) * 0.86], r: 0, s: [0.4, 0.6, 0.04], c: FCs.panel, e: [0, t + Math.PI / 2, 0] });
+      }
+    const crown: BoxItem[] = [];
+    const nc = 16;
+    for (let j = 0; j < nc; j++) {
+      const t = ((j + 0.5) / nc) * Math.PI * 2;
+      const wdt = 2 * (Rc + 0.4) * Math.sin(Math.PI / nc) + 0.05;
+      const at = (rr: number, y: number): [number, number, number] => [Math.cos(t) * rr, y, -Math.sin(t) * rr];
+      crown.push({ p: at(Rc + 0.4, 0.55), r: 0, s: [wdt, 0.8, 0.06], c: FCs.crown, e: [0, t + Math.PI / 2, 0] });
+      crown.push({ p: at(Rc + 0.44, 0.6), r: 0, s: [wdt * 0.55, 0.45, 0.04], c: j % 2 ? FCs.picture : FCs.heart, e: [0, t + Math.PI / 2, 0] });
+    }
+    const chair: BoxItem[] = [
+      { p: [0, -Lc / 2, -0.15], r: 0, s: [0.02, Lc, 0.02], c: FCs.chain },
+      { p: [0, -Lc / 2, 0.15], r: 0, s: [0.02, Lc, 0.02], c: FCs.chain },
+      { p: [0.05, -Lc, 0], r: 0, s: [0.35, 0.08, 0.4], c: FCs.chair },
+      { p: [-0.12, -Lc + 0.22, 0], r: 0, s: [0.06, 0.45, 0.4], c: FCs.chair },
+      { p: [0.08, -Lc + 0.2, 0], r: 0, s: [0.18, 0.35, 0.22], c: FCs.rider },
+    ];
+    return { column, crown, chair };
+  }, [Rc, Lc]);
+
+  const under = useMemo(() => {
+    const g = striped(new THREE.ConeGeometry(Rc + 0.4, 1.0, 24, 1, true), FCs.under, 24);
+    g.rotateX(Math.PI); // open side down: the rainbow underside
+    return g;
+  }, [Rc]);
+  const colH = y0 + dy + 0.2;
+
   return (
     <group>
-      <Pad r={r + 0.8} />
-      <mesh position={[0, 0.4, 0]}>
-        <cylinderGeometry args={[r, r, 0.5, 20]} />
-        <meshLambertMaterial color={tent ? C.coral : C.sand} />
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[4.7, 4.7, 0.06, 32]} />
+        <meshLambertMaterial color={C.kerb} />
       </mesh>
-      <mesh position={[0, h / 2, 0]}>
-        <cylinderGeometry args={[0.5, 0.7, h, 8]} />
-        <meshLambertMaterial color={tent ? C.foam : C.coral} flatShading />
-      </mesh>
-      <group ref={spin}>
-        <StripedCone r={tent ? r + 0.4 : r} h={tent ? h * 0.45 : h * 0.3} colors={stripes} position={[0, tent ? h * 0.85 : h + 0.4, 0]} />
-        {Array.from({ length: tent ? 8 : 10 }, (_, i) => {
-          const t = (i / (tent ? 8 : 10)) * Math.PI * 2;
-          const rr = r * 0.78;
-          return tent ? (
-            <group key={i} position={[Math.cos(t) * rr, 0, Math.sin(t) * rr]}>
-              <Box size={[0.12, h * 0.62, 0.12]} position={[0, h * 0.31 + 0.6, 0]} color={C.sun} />
-              <Box size={[0.5, 0.8, 1.1]} position={[0, 1.5, 0]} color={RAINBOW[i]} />
-            </group>
-          ) : (
-            <group key={i} position={[Math.cos(t) * rr, 0, Math.sin(t) * rr]}>
-              <Box size={[0.06, h * 0.55, 0.06]} position={[0, h * 0.7, 0]} color={C.steel} />
-              <Box size={[0.5, 0.5, 0.5]} position={[0, h * 0.42, 0]} color={RAINBOW[i % RAINBOW.length]} />
-            </group>
-          );
-        })}
+      {/* Fixed: the decorated column */}
+      {FCs.column.map((c, j) => (
+        <mesh key={c} position={[0, (colH * (j + 0.5)) / 3, 0]}>
+          <cylinderGeometry args={[0.85 - j * 0.08, 0.95 - j * 0.08, colH / 3, 12]} />
+          <meshLambertMaterial color={c} flatShading />
+        </mesh>
+      ))}
+      <InstancedBoxes items={parts.column} />
+
+      {/* Moving: the canopy climbs, leans and turns */}
+      <group ref={top} position={[0, y0, 0]}>
+        <group ref={lean}>
+          <group ref={spin}>
+            <mesh geometry={under} position={[0, 0.2, 0]}>
+              <meshLambertMaterial vertexColors flatShading side={THREE.DoubleSide} />
+            </mesh>
+            <mesh position={[0, 0.75, 0]}>
+              <cylinderGeometry args={[Rc * 0.5, Rc + 0.4, 0.5, 24]} />
+              <meshLambertMaterial color={FCs.crown} flatShading />
+            </mesh>
+            <InstancedBoxes items={parts.crown} />
+          </group>
+        </group>
       </group>
+      {/* Chairs, placed each frame under the rim */}
+      {Array.from({ length: n }, (_, i) => (
+        <group
+          key={i}
+          ref={(g) => {
+            chairs.current[i] = g;
+          }}
+          position={[Math.cos((i / n) * Math.PI * 2) * Rc, y0, -Math.sin((i / n) * Math.PI * 2) * Rc]}
+          rotation={[0, (i / n) * Math.PI * 2, 0]}
+        >
+          <InstancedBoxes items={parts.chair} />
+        </group>
+      ))}
     </group>
   );
 }
@@ -3097,25 +3659,118 @@ export function Track({ a }: P) {
   );
 }
 
-/** Surf's Up: a board gliding along a rail across the oval pool (the pool is drawn with the water). */
+/**
+ * Surf's Up: proportions read off the park's photo, as fractions of `opts.len`
+ * (the length of the ride in the park data). The pool round it is drawn with
+ * the water.
+ */
+export const SURFSUP = {
+  track: 0.78, //      track length
+  rise: 4.5, //        how high the track's ends curl up, world units
+  board: 5, //         board length, world units
+  seats: 6, //         seats along each side of the board
+  travel: 0.68, //     how far along the track the board runs, as a fraction of half its length
+  period: 7, //        seconds for one run there and back (assumed)
+  spin: 6, //          seconds per turn of the board at full speed (assumed)
+  cycle: { load: 10, build: 10, run: 25, ease: 10 } as RideCycle, // seconds (assumed)
+};
+
+const SU = {
+  track: '#2A56B8',
+  foam: '#F4F4F0',
+  board: '#FFC53D',
+  boardEdge: '#F28A1E',
+  hub: '#2A56B8',
+  seats: ['#E5383B', '#F28A1E', '#FFC53D', '#3DAA5C', '#2FC3DA', '#7B6CF6', '#E65AA0'],
+  mascot: '#FFC53D',
+  sign: ['#E65AA0', '#2FC3DA', '#F28A1E'],
+  post: '#C7CDD4',
+};
+
+/**
+ * Surf's Up (#7): a blue wave-shaped track with white foam, curling up at both
+ * ends over its pool. A yellow surfboard with two rows of rainbow seat shells
+ * facing out and a surfer mascot on a post rides along it: it loads at the
+ * bottom, then runs back and forth, higher up the curls each time, spinning
+ * as it goes.
+ */
 export function Surf({ a }: P) {
   const { len = 18 } = a.opts;
-  const board = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    if (!board.current) return;
-    const t = clock.elapsedTime * 0.7;
-    board.current.position.x = Math.sin(t) * (len / 2 - 2.5);
-    board.current.rotation.y = t * 1.5;
+  const half = (SURFSUP.track * len) / 2;
+  const yAt = (x: number) => 0.6 + SURFSUP.rise * Math.pow(Math.min(1, Math.abs(x) / half), 2.5);
+  const slope = (x: number) => (Math.sign(x) * SURFSUP.rise * 2.5 * Math.pow(Math.min(1, Math.abs(x) / half), 1.5)) / half;
+  const carriage = useRef<THREE.Group>(null);
+  const spin = useRef<THREE.Group>(null);
+  const time = useRef(cycleOffset(a.position[0], a.position[2]));
+  const lift = 1.15; // board stands this far above the track on its carriage
+  useFrame((_, dt) => {
+    if (!carriage.current || !spin.current) return;
+    const step = Math.min(dt, 0.1);
+    time.current += step;
+    const t = time.current;
+    const k = cycleIntensity(t, SURFSUP.cycle);
+    const x = k * SURFSUP.travel * half * Math.sin((t / SURFSUP.period) * Math.PI * 2);
+    carriage.current.position.set(x, yAt(x) + lift, 0);
+    carriage.current.rotation.z = Math.atan(slope(x));
+    spin.current.rotation.y += step * k * ((Math.PI * 2) / SURFSUP.spin);
   });
+
+  const parts = useMemo(() => {
+    const blue: BoxItem[] = [];
+    const white: BoxItem[] = [];
+    const n = 30;
+    for (let i = 0; i < n; i++) {
+      const x0 = -half + (2 * half * i) / n;
+      const x1 = x0 + (2 * half) / n;
+      const xm = (x0 + x1) / 2;
+      const y0 = yAt(x0);
+      const y1 = yAt(x1);
+      const ym = (y0 + y1) / 2;
+      const segLen = Math.hypot(x1 - x0, y1 - y0) + 0.02;
+      const ang = Math.atan2(y1 - y0, x1 - x0);
+      blue.push({ p: [xm, ym, 0], r: ang, s: [segLen, 0.2, 1.8], c: SU.track }); //                deck
+      for (const z of [-1, 1]) {
+        blue.push({ p: [xm, ym / 2, z * 0.95], r: 0, s: [x1 - x0 + 0.01, ym, 0.1], c: SU.track }); // side walls
+        white.push({ p: [xm, ym * 0.55, z * 1.01], r: ang * 0.5, s: [x1 - x0 + 0.01, 0.12, 0.02], c: SU.foam }); // foam line
+      }
+      white.push({ p: [xm, ym + 0.12, 0], r: ang, s: [segLen, 0.04, 0.12], c: SU.foam }); //       centre rail
+    }
+    // Board, local to the spinning carriage: long along x, seats facing out to ±z
+    const board: BoxItem[] = [
+      { p: [0, 0, 0], r: 0, s: [SURFSUP.board, 0.16, 1.6], c: SU.board },
+      { p: [0, -0.1, 0], r: 0, s: [SURFSUP.board + 0.1, 0.06, 1.7], c: SU.boardEdge },
+      { p: [0, 0.45, 0], r: 0, s: [0.8, 0.75, 0.8], c: SU.hub },
+      { p: [0, -lift / 2, 0], r: 0, s: [0.3, lift, 0.3], c: SU.post }, // carriage post down to the track
+      { p: [0, 1.3, 0], r: 0, s: [0.08, 1.0, 0.08], c: SU.post }, //       mascot post
+      { p: [0, 2.0, 0], r: 0, s: [0.3, 0.6, 0.25], c: SU.mascot }, //      surfer
+      { p: [0, 2.42, 0], r: 0, s: [0.2, 0.2, 0.2], c: SU.mascot },
+      { p: [0, 2.1, 0], r: 0.6, s: [0.9, 0.08, 0.08], c: SU.mascot }, //   arms
+      { p: [0, 1.6, 0.18], r: 0, s: [0.6, 0.45, 0.06], c: SU.sign[0] }, //  colourful sign
+      { p: [0.05, 1.62, 0.22], r: 0, s: [0.4, 0.25, 0.02], c: SU.sign[1] },
+    ];
+    const seatPitch = (SURFSUP.board - 1.4) / SURFSUP.seats;
+    for (const side of [-1, 1])
+      for (let i = 0; i < SURFSUP.seats; i++) {
+        const x = -(SURFSUP.board - 1.4) / 2 + seatPitch * (i + 0.5) + (i >= SURFSUP.seats / 2 ? 0.5 : -0.5);
+        const c = SU.seats[(i + (side > 0 ? 3 : 0)) % SU.seats.length];
+        board.push({ p: [x, 0.5, side * 0.35], r: 0, s: [seatPitch * 0.8, 0.8, 0.1], c }); //  seat shell back
+        board.push({ p: [x, 0.2, side * 0.55], r: 0, s: [seatPitch * 0.8, 0.1, 0.4], c }); //  seat
+        board.push({ p: [x, 0.95, side * 0.45], r: 0, s: [seatPitch * 0.8, 0.12, 0.3], c }); // curl over the top
+      }
+    return { blue, white, board };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [half]);
+
   return (
     <group>
-      <Box size={[len, 0.35, 0.8]} position={[0, 0.5, 0]} color={C.steel} />
-      {[-1, 1].map((s) => (
-        <Box key={s} size={[1.4, 1.2, 2.2]} position={[(s * len) / 2, 0.6, 0]} color={col(a)} />
-      ))}
-      <group ref={board} position={[0, 1.1, 0]}>
-        <Box size={[4.2, 0.35, 1.6]} color={acc(a)} />
-        <Box size={[3.2, 0.5, 0.2]} position={[0, 0.5, 0]} color={C.sun} />
+      {/* Fixed: the wave track */}
+      <InstancedBoxes items={parts.blue} />
+      <InstancedBoxes items={parts.white} />
+      {/* Moving: the carriage runs along the track and tilts with it; the board spins on it */}
+      <group ref={carriage} position={[0, yAt(0) + lift, 0]}>
+        <group ref={spin}>
+          <InstancedBoxes items={parts.board} />
+        </group>
       </group>
     </group>
   );

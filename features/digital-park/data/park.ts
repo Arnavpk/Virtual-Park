@@ -27,7 +27,7 @@ export const CATEGORIES: { id: Category; label: string }[] = [
 /** Numbered 1-33 and lettered A-N exactly as on the park map legend. */
 export const ATTRACTIONS: Attraction[] = [
   { id: '1', name: 'Rush Hour', category: 'ride', kind: 'Family ride', type: 'family', position: [22, 0, 62.1], model: 'hall', opts: { w: 26, d: 11, h: 5, rot: -28, color: '#EDE6D2', accent: '#F2A900' }, solid: { w: 27, d: 12, rot: -28 } },
-  { id: '2', name: 'Turbo Force', category: 'ride', kind: 'High thrill', type: 'high', position: [-8.1, 0, 71.7], model: 'arm', opts: { h: 13, color: '#E65AA0', accent: '#FFC53D', variant: 'turbo', rot: -60 } },
+  { id: '2', name: 'Turbo Force', category: 'ride', kind: 'High thrill', type: 'high', position: [-8.1, 0, 71.7], model: 'arm', opts: { h: 13, color: '#E65AA0', accent: '#FFC53D', variant: 'turbo', rot: -60 }, solid: { r: 4 } },
   { id: '3', name: 'Samba Balloon', category: 'ride', kind: 'Family ride', type: 'family', position: [-2.9, 0, 44], model: 'spinner', opts: { variant: 'balloon', arms: 6, r: 4.5, color: '#FF5D73', accent: '#3D8BFF' }, solid: { r: 5 } },
   { id: '4', name: 'Delta Hoppla', category: 'ride', kind: 'Mid thrill', type: 'mid', position: [6.1, 0, 20.4], model: 'hoppla', opts: { h: 6, color: '#E8438C', accent: '#24409A' }, solid: { r: 5 } },
   { id: '5', name: 'Space Trainer', category: 'ride', kind: 'Mid thrill', type: 'mid', position: [-21.4, 0, 35.6], model: 'arm', opts: { h: 8, color: '#6B5BD6', accent: '#3DDC97', variant: 'gyro' }, solid: { r: 4.5 } },
