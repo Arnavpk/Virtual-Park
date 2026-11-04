@@ -1,6 +1,6 @@
 export type Vec2 = { x: number; z: number };
 
-export type Category = 'ride' | 'attraction' | 'food' | 'service';
+export type Category = 'ride' | 'attraction' | 'food' | 'service' | 'other';
 
 /** Facilities a place has on site, as confirmed by the park team. */
 export type Amenity = 'restroom' | 'water';

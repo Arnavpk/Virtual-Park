@@ -470,7 +470,7 @@ export default function DigitalPark({
               />
             )}
           </div>
-          {devTools && mode === 'virtual' && !overlayOpen && <CameraDebug />}
+          {/* {devTools && mode === 'virtual' && !overlayOpen && <CameraDebug />} */}
           {devTools && mode === 'gps' && !overlayOpen && (
             <GpsDevPanel status={gps.status} source={gps.source} calibrationKind={gps.calibrationKind} simulator={gps.simulator} />
           )}

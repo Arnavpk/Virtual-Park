@@ -22,6 +22,7 @@ export const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'attraction', label: 'Attractions' },
   { id: 'food', label: 'Food' },
   { id: 'service', label: 'Services' },
+  { id: 'other', label: 'Other' },
 ];
 
 /** Numbered 1-33 and lettered A-N exactly as on the park map legend. */
@@ -56,14 +57,14 @@ export const ATTRACTIONS: Attraction[] = [
   { id: '28', name: 'Galleon', category: 'ride', kind: 'Family ride', type: 'family', position: [70.5, 0, 27], model: 'ship', opts: { h: 8, rot: -30, color: '#8A5A33', accent: '#FFC53D' } },
   { id: '29', name: 'Carnival Carousel', category: 'ride', kind: 'Family ride', type: 'family', position: [30.7, 0, 23], model: 'carousel', opts: { variant: 'tent', r: 6, h: 6, color: '#2A56B8', accent: '#FFFFFF' }, solid: { r: 6.5 } },
   { id: '30', name: 'You Are The Star', category: 'attraction', kind: '', position: [77.4, 0, -60.3], model: 'hall', opts: { w: 28, d: 12, h: 7, rot: -40, color: '#F4F4F0', accent: '#1F3A6E' }, solid: { w: 29, d: 13, rot: -40 } },
-  { id: '31', name: 'Musical Fountain', category: 'attraction', kind: '', position: [6.2, 0, -11.7], model: 'fountain', opts: { variant: 'lake', r: 5 } },
-  { id: '32', name: 'Dynamic Fountain', category: 'attraction', kind: '', position: [-24.7, 0, -46.3], model: 'fountain', opts: { variant: 'plaza', r: 3.2 }, solid: { r: 3.2 } },
-  { id: '33', name: 'Kids Play Area', category: 'attraction', kind: '', position: [-83.1, 0, -48.5], model: 'playground', opts: { r: 6, color: '#FF5D73', accent: '#3D8BFF' }, solid: { r: 4.5 } },
+  { id: '31', name: 'Musical Fountain', category: 'other', kind: '', position: [6.2, 0, -11.7], model: 'fountain', opts: { variant: 'lake', r: 5 } },
+  { id: '32', name: 'Dynamic Fountain', category: 'other', kind: '', position: [-24.7, 0, -46.3], model: 'fountain', opts: { variant: 'plaza', r: 3.2 }, solid: { r: 3.2 } },
+  { id: '33', name: 'Kids Play Area', category: 'other', kind: '', position: [-83.1, 0, -48.5], model: 'playground', opts: { r: 6, color: '#FF5D73', accent: '#3D8BFF' }, solid: { r: 4.5 } },
   { id: 'A', name: 'Windmill Cafe', category: 'food', kind: 'Mini meals', position: [-41.5, 0, 7.1], model: 'windmill', opts: { w: 22, d: 14, h: 5, rot: -28, color: '#BFE3F5', accent: '#1F3A6E' }, solid: { w: 23, d: 15, rot: -28 }, amenities: ['restroom', 'water'] },
   { id: 'B', name: 'Zen Forest', category: 'food', kind: 'Multi-cuisine', position: [-47.4, 0, -99.3], model: 'hall', opts: { w: 24, d: 14, h: 5, rot: 0, color: '#9C6634', accent: '#1F3A6E' }, solid: { w: 25, d: 15, rot: 0 }, amenities: ['restroom', 'water'] },
-  { id: 'C', name: 'The Deck', category: 'food', kind: 'Oriental', position: [54.1, 0, -90.1], model: 'hall', opts: { w: 16, d: 9, h: 4, rot: -38, color: '#B08C5A', accent: '#7A5C3A' }, solid: { w: 17, d: 10, rot: -38 } },
+  { id: 'C', name: 'The Deck', category: 'food', kind: 'Oriental', position: [54.1, 0, -90.1], model: 'hall', opts: { w: 16, d: 9, h: 4, rot: -38, color: '#B08C5A', accent: '#7A5C3A' }, solid: { w: 17, d: 10, rot: -38 }, amenities: ['restroom', 'water'] },
   { id: 'D', name: 'Santa Maria', category: 'food', kind: 'Snacks', position: [65.2, 0, 48.1], model: 'shipcafe', opts: { w: 12, d: 10, h: 4, rot: -25, color: '#B9552F', accent: '#1F3A6E' }, solid: { w: 13, d: 11, rot: -25 }, amenities: ['restroom'] },
-  { id: 'E', name: 'Summer Garden', category: 'food', kind: 'Pizza & burgers', position: [27.6, 0, -41.3], model: 'garden', opts: { w: 10.5, d: 7.5, h: 4.5, rot: -35, color: '#F4F4F0', accent: '#2E7D4F' }, solid: { w: 11.5, d: 8.5, rot: -35 }, amenities: ['water'] },
+  { id: 'E', name: 'Summer Garden', category: 'food', kind: 'Pizza & burgers', position: [27.6, 0, -41.3], model: 'garden', opts: { w: 10.5, d: 7.5, h: 4.5, rot: -35, color: '#F4F4F0', accent: '#2E7D4F' }, solid: { w: 11.5, d: 8.5, rot: -35 }, amenities: ['restroom', 'water'] },
   { id: 'F', name: 'Swirl Station', category: 'food', kind: 'Cold Stone ice cream', position: [-35.6, 0, -12.3], model: 'kiosk', opts: { w: 4, d: 4, h: 3, rot: -20, color: '#F7C6E0', accent: '#C2408C' }, solid: { w: 5, d: 5, rot: -20 } },
   { id: 'G', name: 'First Aid', category: 'service', kind: '', position: [-66, 0, -22.2], model: 'kiosk', opts: { w: 4.5, d: 4, h: 3, rot: 0, color: '#FFFFFF', accent: '#E5383B', cross: true }, solid: { w: 5.5, d: 5, rot: 0 } },
   { id: 'H', name: 'Platform 93%', category: 'food', kind: 'Kiddie snacks', position: [-96.4, 0, -48.7], model: 'kiosk', opts: { w: 9, d: 3.5, h: 3.2, rot: 62, color: '#F28A1E', accent: '#2A56B8' }, solid: { w: 10, d: 4.5, rot: 62 }, amenities: ['restroom'] },
@@ -72,7 +73,7 @@ export const ATTRACTIONS: Attraction[] = [
   { id: 'K', name: 'The Smoothie Life', category: 'food', kind: 'Shakes & smoothies', position: [13.5, 0, -75.6], model: 'kiosk', opts: { w: 4, d: 4, h: 3, rot: 0, color: '#FFE9A8', accent: '#3DAA5C' }, solid: { w: 5, d: 5, rot: 0 } },
   { id: 'L', name: 'Cream Scream', category: 'food', kind: 'Cakes & bakes', position: [44.6, 0, -38.5], model: 'kiosk', opts: { w: 5, d: 4.5, h: 3.2, rot: -30, color: '#FFF1D6', accent: '#C2408C' }, solid: { w: 6, d: 5.5, rot: -30 } },
   { id: 'M', name: 'Refuel', category: 'food', kind: 'Snacks & beverages', position: [52, 0, 2.7], model: 'kiosk', opts: { w: 5, d: 4, h: 3, rot: -20, color: '#DDEBFF', accent: '#2A56B8' }, solid: { w: 6, d: 5, rot: -20 } },
-  { id: 'N', name: 'Maze Garden', category: 'attraction', kind: '', position: [4.6, 0, -85.5], model: 'maze', opts: { w: 11, d: 8, rot: -10, color: '#2E7D4F' } },
+  { id: 'N', name: 'Maze Garden', category: 'other', kind: '', position: [4.6, 0, -85.5], model: 'maze', opts: { w: 11, d: 8, rot: -10, color: '#2E7D4F' } },
 ];
 
 /** Unnumbered structures that help people get their bearings. */

@@ -228,9 +228,9 @@ A_ = [
  ('28','Galleon','ride',FAM,'ship',dict(h=8,rot=-30,color='#8A5A33',accent='#FFC53D'),0),
  ('29','Carnival Carousel','ride',FAM,'carousel',dict(variant='tent',r=6,h=6,color='#2A56B8',accent='#FFFFFF'),6.5),
  ('30','You Are The Star','attraction','','hall',dict(w=28,d=12,h=7,rot=-40,color='#F4F4F0',accent='#1F3A6E'),'rect'),
- ('31','Musical Fountain','attraction','','fountain',dict(variant='lake',r=5),0),
- ('32','Dynamic Fountain','attraction','','fountain',dict(variant='plaza',r=3.2),3.2),
- ('33','Kids Play Area','attraction','','playground',dict(r=6,color='#FF5D73',accent='#3D8BFF'),4.5),
+ ('31','Musical Fountain','other','','fountain',dict(variant='lake',r=5),0),
+ ('32','Dynamic Fountain','other','','fountain',dict(variant='plaza',r=3.2),3.2),
+ ('33','Kids Play Area','other','','playground',dict(r=6,color='#FF5D73',accent='#3D8BFF'),4.5),
  ('A','Windmill Cafe','food','Mini meals','windmill',dict(w=22,d=14,h=5,rot=-28,color='#BFE3F5',accent='#1F3A6E'),'rect'),
  ('B','Zen Forest','food','Multi-cuisine','hall',dict(w=24,d=14,h=5,rot=0,color='#9C6634',accent='#1F3A6E'),'rect'),
  ('C','The Deck','food','Oriental','hall',dict(w=16,d=9,h=4,rot=-38,color='#B08C5A',accent='#7A5C3A'),'rect'),
@@ -244,7 +244,7 @@ A_ = [
  ('K','The Smoothie Life','food','Shakes & smoothies','kiosk',dict(w=4,d=4,h=3,rot=0,color='#FFE9A8',accent='#3DAA5C'),'rect'),
  ('L','Cream Scream','food','Cakes & bakes','kiosk',dict(w=5,d=4.5,h=3.2,rot=-30,color='#FFF1D6',accent='#C2408C'),'rect'),
  ('M','Refuel','food','Snacks & beverages','kiosk',dict(w=5,d=4,h=3,rot=-20,color='#DDEBFF',accent='#2A56B8'),'rect'),
- ('N','Maze Garden','attraction','','maze',dict(w=11,d=8,rot=-10,color='#2E7D4F'),0),
+ ('N','Maze Garden','other','','maze',dict(w=11,d=8,rot=-10,color='#2E7D4F'),0),
 ]
 # Unnumbered structures that help people get their bearings.
 LANDMARKS = [
@@ -398,7 +398,7 @@ L = ["import type { Attraction, Category, Landmark, Vec2 } from './types';", '',
 '/** Where the visitor starts: just inside the entrance gate (snapped to the nearest walkable spot at load). */',
 f'export const SPAWN: Vec2 = {{ x: {SPAWN_W[0]:.1f}, z: {SPAWN_W[1]:.1f} }};', '',
 'export const CATEGORIES: { id: Category; label: string }[] = [',
-"  { id: 'ride', label: 'Rides' },", "  { id: 'attraction', label: 'Attractions' },", "  { id: 'food', label: 'Food' },", "  { id: 'service', label: 'Services' },", '];', '',
+"  { id: 'ride', label: 'Rides' },", "  { id: 'attraction', label: 'Attractions' },", "  { id: 'food', label: 'Food' },", "  { id: 'service', label: 'Services' },", "  { id: 'other', label: 'Other' },", '];',"  { id: 'other', label: 'Others' },", '',
 '/** Numbered 1-33 and lettered A-N exactly as on the park map legend. */',
 'export const ATTRACTIONS: Attraction[] = [']
 for it in attractions:
