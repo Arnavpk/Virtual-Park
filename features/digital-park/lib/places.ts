@@ -71,7 +71,7 @@ export function matchesFilter(a: Attraction, f: Filter): boolean {
   }
 }
 
-const CATEGORY_LABEL = { ride: 'Ride', attraction: 'Attraction', food: 'Food', service: 'Service' } as const;
+const CATEGORY_LABEL = { ride: 'Ride', attraction: 'Attraction', food: 'Food', service: 'Service', other: 'Other', } as const;
 
 /** One line saying what a place is: "Mid thrill ride", "Food: Mini meals", "Attraction". */
 export function categoryLine(a: Attraction): string {
