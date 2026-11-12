@@ -31,8 +31,8 @@ export type ModelName =
   | 'fountain'
   | 'playground'
   | 'maze'
-  | 'halfpipe';
-   | 'none'
+  | 'halfpipe'
+  | 'none'
 
 /** Size and styling hints for a model. Lengths are world units; `rot` is degrees, anticlockwise seen from above. */
 export interface ModelOptions {
