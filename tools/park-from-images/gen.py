@@ -245,6 +245,7 @@ A_ = [
  ('L','Cream Scream','food','Cakes & bakes','kiosk',dict(w=5,d=4.5,h=3.2,rot=-30,color='#FFF1D6',accent='#C2408C'),'rect'),
  ('M','Refuel','food','Snacks & beverages','kiosk',dict(w=5,d=4,h=3,rot=-20,color='#DDEBFF',accent='#2A56B8'),'rect'),
  ('N','Maze Garden','other','','maze',dict(w=11,d=8,rot=-10,color='#2E7D4F'),0),
+  ('gate','Entry & Exit','service','Park gate','none',dict(h=5),0),
 ]
 # Unnumbered structures that help people get their bearings.
 LANDMARKS = [
@@ -254,7 +255,7 @@ LANDMARKS = [
  dict(id='east-building', kind='hall', px=(2360,900), opts=dict(w=13,d=10,h=10,rot=-35,color='#D9DBD6',accent='#B9BDB6')),
 ]
 LANDMARKS[0]['px'] = (410, 225)
-WORLD_OVERRIDE = {'E': (27.6, -41.3)}     # the kitchen building; its parasols are a separate landmark
+WORLD_OVERRIDE = {'E': (27.6, -41.3), 'gate': (48.7, 57.2)}   # the gate place sits on the gate-house arch     # the kitchen building; its parasols are a separate landmark
 WORLD_LANDMARKS = [
  dict(id='summer-garden-parasols', kind='parasols', x=12.8, z=-31.7, opts=dict(r=8)),   # no solid: visitors walk under the umbrellas
  dict(id='round-pool', kind='pool', x=54.8, z=-14.7, opts=dict(r=3.6), solid=dict(r=4)),

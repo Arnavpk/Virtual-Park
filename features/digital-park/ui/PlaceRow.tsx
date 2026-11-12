@@ -3,6 +3,9 @@ import type { Attraction } from '../data/types';
 import { formatMetres } from '../lib/pathfinding';
 import { categoryLine } from '../lib/places';
 import { Icon } from './icons';
+import { useParkClock } from '../hooks/useParkClock';
+import { closedLabel, hoursState } from '../lib/hours';
+import { PlaceGlyph } from './PlaceGlyph';
 
 /**
  * One place in a list: code, name, what it is, distance, and optional buttons.
@@ -10,6 +13,7 @@ import { Icon } from './icons';
  * Shared by My Park's lists so favorites, My Day, visited and recommendations
  * all read the same way.
  */
+
 export function PlaceRow({
   place,
   metres,
@@ -33,12 +37,14 @@ export function PlaceRow({
   extra?: ReactNode;
   /** Buttons shown at the right of the row. */
   children?: ReactNode;
+
 }) {
+  const closed = closedLabel(hoursState(place.id, useParkClock()));
   return (
     <div className={`dp-row${extra ? ' dp-row--stacked' : ''}`}>
       <button type="button" className="dp-row__main" onClick={onOpen}>
         {rank !== undefined && <span className="dp-place__rank">{rank}</span>}
-        <span className={`dp-place__icon dp-tint--${place.category}`}>{place.id}</span>
+        <span className={`dp-place__icon dp-tint--${place.category}`}><PlaceGlyph place={place} /></span>
         <span className="dp-place__text">
           <span className="dp-place__name">
             {place.name}
@@ -50,6 +56,7 @@ export function PlaceRow({
           </span>
           <span className="dp-place__kind">{note ?? categoryLine(place)}</span>
           <span className="dp-row__meta">
+            {closed && <span className="dp-row__closed">{closed}</span>}
             {metres !== undefined && Number.isFinite(metres) && <span>{formatMetres(metres)}</span>}
             {visited && (
               <span className="dp-mark dp-mark--visited">

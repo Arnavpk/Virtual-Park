@@ -2,18 +2,20 @@ import { ATTRACTIONS } from '../data/park';
 import type { Amenity, Attraction, Vec2 } from '../data/types';
 import { DOORS } from './layout';
 import { walkingMetres } from './pathfinding';
+import { isOpenAt, parkMinutes } from './hours';
 
 /**
  * Searching and filtering the places in data/park.ts. There is no second
  * list: everything here reads the same ATTRACTIONS table the 3D scene uses.
  */
 
-export type Filter = 'all' | 'near' | 'ride' | 'high' | 'mid' | 'family' | 'kids' | 'food' | 'attraction' | 'service' | Amenity;
+export type Filter = 'all' | 'near' | 'open' | 'ride' | 'high' | 'mid' | 'family' | 'kids' | 'food' | 'attraction' | 'service' | Amenity;
 
 /** In display order. 'near' is a way of sorting rather than a category, so it sits right after All. */
 export const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'near', label: 'Near me' },
+  { id: 'open', label: 'Open now' },
   { id: 'ride', label: 'Rides' },
   { id: 'high', label: 'High thrill' },
   { id: 'mid', label: 'Mid thrill' },
@@ -31,7 +33,9 @@ export const AMENITY_LABEL: Record<Amenity, string> = { restroom: 'Restrooms', w
 const AMENITY_WORDS: Record<Amenity, string> = {
   restroom: 'restroom restrooms toilet toilets washroom washrooms wc loo bathroom',
   water: 'drinking water fountain water point refill',
+
 };
+const PLACE_WORDS: Record<string, string> = { gate: 'entrance way out main gate exit entry' };
 
 /** Places with each facility, from the same ATTRACTIONS table (no separate records). */
 export const FACILITIES: Record<Amenity, Attraction[]> = {
@@ -58,6 +62,8 @@ export function matchesFilter(a: Attraction, f: Filter): boolean {
     case 'all':
     case 'near':
       return true;
+    case 'open':
+      return isOpenAt(a.id, parkMinutes());
     case 'high':
     case 'mid':
     case 'family':
@@ -93,8 +99,9 @@ const fold = (s: string) =>
 const HAYSTACK = new Map(
   ATTRACTIONS.map((a) => [
     a.id,
-    { name: fold(a.name), all: fold(`${a.name} ${categoryLine(a)} ${a.id} ${(a.amenities ?? []).map((m) => AMENITY_WORDS[m]).join(' ')}`) },
+    { name: fold(a.name), all: fold(`${a.name} ${categoryLine(a)} ${a.id} ${PLACE_WORDS[a.id] ?? ''} ${(a.amenities ?? []).map((m) => AMENITY_WORDS[m]).join(' ')}`) },
   ]),
+
 );
 
 /**

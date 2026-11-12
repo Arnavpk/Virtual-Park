@@ -74,6 +74,7 @@ export const ATTRACTIONS: Attraction[] = [
   { id: 'L', name: 'Cream Scream', category: 'food', kind: 'Cakes & bakes', position: [44.6, 0, -38.5], model: 'kiosk', opts: { w: 5, d: 4.5, h: 3.2, rot: -30, color: '#FFF1D6', accent: '#C2408C' }, solid: { w: 6, d: 5.5, rot: -30 } },
   { id: 'M', name: 'Refuel', category: 'food', kind: 'Snacks & beverages', position: [52, 0, 2.7], model: 'kiosk', opts: { w: 5, d: 4, h: 3, rot: -20, color: '#DDEBFF', accent: '#2A56B8' }, solid: { w: 6, d: 5, rot: -20 } },
   { id: 'N', name: 'Maze Garden', category: 'other', kind: '', position: [4.6, 0, -85.5], model: 'maze', opts: { w: 11, d: 8, rot: -10, color: '#2E7D4F' } },
+  { id: 'gate', name: 'Entry & Exit', category: 'service', kind: 'Park gate', position: [48.7, 0, 57.2], model: 'none', opts: { h: 5 } },
 ];
 
 /** Unnumbered structures that help people get their bearings. */

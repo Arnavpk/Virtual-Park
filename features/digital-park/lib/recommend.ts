@@ -1,6 +1,8 @@
 import { INTERESTS, interestMatch } from '../data/interests';
 import type { Attraction } from '../data/types';
 import type { UserPark } from '../state/userPark';
+import { WALK_METRES_PER_MIN } from '../data/park';
+import { openWhenReached, parkMinutes } from './hours';
 
 /**
  * "Recommended for you" and "What should I do next?".
@@ -29,6 +31,8 @@ export const WEIGHTS = {
   unpromptedFood: -3,
   /** Already-visited places sink to the bottom rather than vanish. */
   visited: -12,
+  closed: -30,
+
 };
 
 export interface Suggestion {
@@ -39,6 +43,8 @@ export interface Suggestion {
   /** One short line saying why it was suggested. */
   reason: string;
   visited: boolean;
+  /** Open when the visitor would get there. */
+  open: boolean;
 }
 
 /** Rides, attractions and food can be recommended. Services (First Aid, shops) are reached through Facilities instead. */
@@ -48,6 +54,8 @@ export const isRecommendable = (a: Attraction) => a.category !== 'service';
 export const isExplorable = (a: Attraction) => a.category === 'ride' || a.category === 'attraction';
 
 export function recommend(input: {
+  /** Park time in minutes after midnight; defaults to now. */
+  now?: number;
   places: Attraction[];
   /** Walking distance in metres from the visitor to each place, by id. */
   metres: Map<string, number>;
@@ -56,13 +64,14 @@ export function recommend(input: {
   exclude?: string[];
   limit?: number;
 }): Suggestion[] {
-  const { places, metres, user, exclude = [], limit } = input;
+  const { places, metres, user, exclude = [], limit, now = parkMinutes() } = input;
   const nextPlanned = user.myDay.find((id) => !user.visited.includes(id) && !exclude.includes(id));
   const out: Suggestion[] = [];
 
   for (const place of places) {
     if (!isRecommendable(place) || exclude.includes(place.id)) continue;
     const m = metres.get(place.id) ?? Infinity;
+    const open = openWhenReached(place.id, now, m, WALK_METRES_PER_MIN);
     const visited = user.visited.includes(place.id);
     const favorite = user.favorites.includes(place.id);
     const planned = user.myDay.includes(place.id);
@@ -77,6 +86,7 @@ export function recommend(input: {
     if (place.id === nextPlanned) score += WEIGHTS.nextPlanned;
     if (place.category === 'food' && !favorite && !planned && !user.interests.includes('food')) score += WEIGHTS.unpromptedFood;
     if (visited) score += WEIGHTS.visited;
+    if (!open) score += WEIGHTS.closed;
     score -= (Number.isFinite(m) ? m / 100 : 20) * WEIGHTS.per100m;
 
     let reason: string;
@@ -87,7 +97,7 @@ export function recommend(input: {
     else if (m < 120) reason = 'Close to you';
     else reason = visited ? 'You have been here' : "You haven't been here yet";
 
-    out.push({ place, metres: m, score, reason, visited });
+    out.push({ place, metres: m, score, reason, visited, open });
   }
 
   // Highest score first; ties go to the nearer place, then to map order, so the result never flickers.
@@ -97,7 +107,7 @@ export function recommend(input: {
 
 /** The single best thing to do next, or null when everything recommendable has been visited. */
 export function whatNext(input: Parameters<typeof recommend>[0]): Suggestion | null {
-  return recommend(input).find((s) => !s.visited) ?? null;
+  return recommend(input).find((s) => !s.visited && s.open) ?? null;
 }
 
 /** How much of the park has been explored. */

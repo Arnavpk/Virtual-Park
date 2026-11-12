@@ -32,7 +32,9 @@ import { QrDialog } from './ui/QrDialog';
 import { TiltDialog } from './ui/TiltDialog';
 import { TopBar } from './ui/TopBar';
 import { ZoomControls } from './ui/ZoomControls';
+import { readClockParam } from './lib/hours'
 import './digital-park.css';
+
 
 const ARRIVE_DISTANCE = 1.6;
 /** GPS can't place anyone to within a step, so in GPS Mode "arrived" means within about 8 m. */
@@ -390,7 +392,15 @@ export default function DigitalPark({
   };
 
   const overlayOpen = sheetOpen || tiltDialog || gpsDialog || myParkOpen || qrDialog;
+  const hideControls = overlayOpen || !!selected;
   const compactPins = cameraMode === 'overview' || zoom < 0.8;
+
+  // Dev tools: ?clock=14:55 runs the park clock from that time, to test opening hours.
+  const clockRead = useRef(false);
+  if (!clockRead.current) {
+    clockRead.current = true;
+    if (devTools && typeof window !== 'undefined') readClockParam();
+  }
 
   return (
     <GameContext.Provider value={game}>
@@ -454,13 +464,13 @@ export default function DigitalPark({
           )}
 
           {/* Bottom left: the Virtual / GPS switch, with the joystick (Virtual) or the GPS status (GPS) beneath it. */}
-          <div className={`dp-left${overlayOpen ? ' is-hidden' : ''}`}>
+          <div className={`dp-left${hideControls ? ' is-hidden' : ''}`}>
             <div className="dp-left__row">
               <ModeSwitch mode={mode} onChange={changeMode} />
               <CompassButton />
             </div>
             {mode === 'virtual' ? (
-              <Joystick hidden={overlayOpen} />
+              <Joystick hidden={hideControls} />
             ) : (
               <GpsStatus
                 status={gps.status}
@@ -475,7 +485,7 @@ export default function DigitalPark({
             <GpsDevPanel status={gps.status} source={gps.source} calibrationKind={gps.calibrationKind} simulator={gps.simulator} />
           )}
 
-          <div className={`dp-right${overlayOpen ? ' is-hidden' : ''}`}>
+          <div className={`dp-right${hideControls ? ' is-hidden' : ''}`}>
             <ActionButtons
               cameraMode={cameraMode}
               onToggleCamera={() => setCameraMode((m) => (m === 'follow' ? 'overview' : 'follow'))}

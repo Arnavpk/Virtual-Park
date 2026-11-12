@@ -3,12 +3,21 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Attraction } from '../../data/types';
 import { C } from '../palette';
+import { rideRunning } from '../../lib/hours';
 import { cycleIntensity, cycleOffset, type RideCycle } from './motion';
 import { Box, Pad, RAINBOW, StripedCone, Strut, Tube, rad } from './parts';
 
 type P = { a: Attraction };
 const col = (a: Attraction) => a.opts.color ?? C.coral;
 const acc = (a: Attraction) => a.opts.accent ?? C.sun;
+
+/** True while a ride stands at its platform for loading: the first `load` seconds of each cycle. */
+const atPlatform = (t: number, c: RideCycle) => {
+  const L = c.load + c.build + c.run + c.ease;
+  return ((t % L) + L) % L < c.load;
+};
+/** How far to move a ride's clock this frame. A closed ride finishes its run, then waits at the platform until it opens. */
+const advance = (a: Attraction, step: number, atRest: boolean) => (atRest && !rideRunning(a.id) ? 0 : step);
 
 /**
  * Flat rides: a hub with arms and cars that goes round. Covers most family and
@@ -123,7 +132,7 @@ export function JuniorJet({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, JET.cycle));
     const t = time.current;
     const k = cycleIntensity(t, JET.cycle);
     spin.current.rotation.y -= step * k * ((Math.PI * 2) / JET.turn);
@@ -306,7 +315,7 @@ export function SkyRace({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, SKY.cycle));
     const k = cycleIntensity(time.current, SKY.cycle);
     const w = k * wMax;
     spin.current.rotation.y -= step * w;
@@ -493,7 +502,7 @@ export function SambaBalloon({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, SAMBA.cycle));
     const t = time.current;
     const k = cycleIntensity(t, SAMBA.cycle);
     spin.current.rotation.y -= step * k * ((Math.PI * 2) / SAMBA.turn);
@@ -620,7 +629,7 @@ export function WaterMania({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, MANIA.cycle));
     spin.current.rotation.y -= step * cycleIntensity(time.current, MANIA.cycle) * ((Math.PI * 2) / MANIA.turn);
   });
 
@@ -828,7 +837,7 @@ export function JumpinStar({ a }: P) {
   const yTop = JUMP.top * h;
   useFrame((_, dt) => {
     if (!car.current) return;
-    time.current += Math.min(dt, 0.1);
+    time.current += advance(a, Math.min(dt, 0.1), jumpHeight(time.current) === 0);
     car.current.position.y = yLow + (yTop - yLow) * jumpHeight(time.current);
   });
 
@@ -966,7 +975,7 @@ export function MagicBike({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, BIKE.cycle));
     const t = time.current;
     const k = cycleIntensity(t, BIKE.cycle);
     spin.current.rotation.y -= step * k * ((Math.PI * 2) / BIKE.turn);
@@ -1100,7 +1109,7 @@ export function WaveBlaster({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, WAVE.cycle));
     const t = time.current;
     const k = cycleIntensity(t, WAVE.cycle);
     spin.current.rotation.y -= step * k * ((Math.PI * 2) / WAVE.turn);
@@ -1225,7 +1234,7 @@ export function KiteFlyer({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current || !tiltG.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, KITE.cycle));
     const k = cycleIntensity(time.current, KITE.cycle);
     const w = k * wMax;
     const tilt = rad(KITE.tilt) * k;
@@ -1402,7 +1411,7 @@ export function AirRace({ a }: P) {
   useFrame((_, dt) => {
     if (!rock.current || !spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, AIRRACE.cycle));
     const t = time.current;
     const k = cycleIntensity(t, AIRRACE.cycle);
     spin.current.rotation.y -= step * k * ((Math.PI * 2) / AIRRACE.turn);
@@ -1514,7 +1523,7 @@ export function FlippingArm({ a }: P) {
   const per = FLIP.cycle.build / 2 + FLIP.cycle.run + FLIP.cycle.ease / 2;
   useFrame((_, dt) => {
     if (!star.current) return;
-    time.current += Math.min(dt, 0.1);
+    time.current += advance(a, Math.min(dt, 0.1), atPlatform(time.current, FLIP.cycle));
     const t = time.current;
     const th = ((Math.PI * 2 * FLIP.turns) / per) * cycleTravel(t, FLIP.cycle);
     const k = cycleIntensity(t, FLIP.cycle);
@@ -1702,7 +1711,7 @@ export function Ferris({ a }: P) {
   useFrame((_, dt) => {
     if (!wheel.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, FERRIS.cycle));
     wheel.current.rotation.z += step * cycleIntensity(time.current, FERRIS.cycle) * ((Math.PI * 2) / FERRIS.turn);
     for (const c of cars.current) c?.rotation.set(0, 0, -wheel.current.rotation.z);
   });
@@ -1891,7 +1900,7 @@ export function Hoppla({ a }: P) {
   const time = useRef(cycleOffset(a.position[0], a.position[2]));
   useFrame((_, dt) => {
     if (!swing.current) return;
-    time.current += Math.min(dt, 0.1); // a hidden tab shouldn't jump the ride on return
+    time.current += advance(a, Math.min(dt, 0.1), atPlatform(time.current, HOPPLA.cycle)); // a hidden tab shouldn't jump the ride on return
     const t = time.current;
     const k = cycleIntensity(t, HOPPLA.cycle);
     swing.current.rotation.z = rad(HOPPLA.maxSwing) * k * Math.sin((t / HOPPLA.period) * Math.PI * 2);
@@ -2097,7 +2106,7 @@ export function Frisbee({ a }: P) {
   useFrame((_, dt) => {
     if (!arm.current || !disc.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, FRISBEE.cycle));
     const t = time.current;
     const k = cycleIntensity(t, FRISBEE.cycle);
     arm.current.rotation.z = rad(FRISBEE.maxSwing) * k * Math.sin((t / FRISBEE.period) * Math.PI * 2);
@@ -2236,7 +2245,7 @@ export function SkyScreamer({ a }: P) {
   useFrame((_, dt) => {
     if (!carriage.current || !spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, SCREAMER.cycle));
     const t = time.current;
     const hf = screamerHeight(t);
     carriage.current.position.y = yLow + (yHigh - yLow) * hf;
@@ -2398,7 +2407,7 @@ export function TopSpin({ a }: P) {
   const per = TOPSPIN.cycle.build / 2 + TOPSPIN.cycle.run + TOPSPIN.cycle.ease / 2;
   useFrame((_, dt) => {
     if (!arms.current || !gondola.current) return;
-    time.current += Math.min(dt, 0.1);
+    time.current += advance(a, Math.min(dt, 0.1), atPlatform(time.current, TOPSPIN.cycle));
     const t = time.current;
     const th = ((Math.PI * 2 * TOPSPIN.turns) / per) * cycleTravel(t, TOPSPIN.cycle);
     arms.current.rotation.x = th;
@@ -2539,7 +2548,7 @@ export function SpaceTrainer({ a }: P) {
   const time = useRef(cycleOffset(a.position[0], a.position[2]));
   useFrame((_, dt) => {
     if (!swing.current) return;
-    time.current += Math.min(dt, 0.1);
+    time.current += advance(a, Math.min(dt, 0.1), atPlatform(time.current, TRAINER.cycle));
     const t = time.current;
     swing.current.rotation.x = rad(TRAINER.maxSwing) * cycleIntensity(t, TRAINER.cycle) * Math.sin((t / TRAINER.period) * Math.PI * 2);
   });
@@ -2646,7 +2655,7 @@ export function TurboForce({ a }: P) {
   const per = TURBO.cycle.build / 2 + TURBO.cycle.run + TURBO.cycle.ease / 2;
   useFrame((_, dt) => {
     if (!arm.current) return;
-    time.current += Math.min(dt, 0.1);
+    time.current += advance(a, Math.min(dt, 0.1), atPlatform(time.current, TURBO.cycle));
     const t = time.current;
     const th = ((Math.PI * 2 * TURBO.turns) / per) * cycleTravel(t, TURBO.cycle);
     const k = cycleIntensity(t, TURBO.cycle);
@@ -2786,7 +2795,7 @@ export function Disco({ a }: P) {
   useFrame((_, dt) => {
     if (!carriage.current || !spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, DISCO.cycle));
     const t = time.current;
     const k = cycleIntensity(t, DISCO.cycle);
     const x = k * DISCO.travel * half * Math.sin((t / DISCO.period) * Math.PI * 2);
@@ -2941,7 +2950,7 @@ export function ZForce({ a }: P) {
   const time = useRef(cycleOffset(a.position[0], a.position[2]));
   useFrame((_, dt) => {
     if (!car.current) return;
-    time.current += Math.min(dt, 0.1);
+    time.current += advance(a, Math.min(dt, 0.1), zforceHeight(time.current, rise) === 0);
     car.current.position.y = ZF.load + zforceHeight(time.current, rise);
   });
 
@@ -3098,7 +3107,7 @@ export function Ship({ a }: P) {
   const time = useRef(cycleOffset(a.position[0], a.position[2]));
   useFrame((_, dt) => {
     if (!swing.current) return;
-    time.current += Math.min(dt, 0.1);
+    time.current += advance(a, Math.min(dt, 0.1), atPlatform(time.current, GALLEON.cycle));
     const t = time.current;
     swing.current.rotation.z = rad(GALLEON.maxSwing) * cycleIntensity(t, GALLEON.cycle) * Math.sin((t / GALLEON.period) * Math.PI * 2);
   });
@@ -3303,7 +3312,7 @@ export function CarnivalCarousel({ a }: P) {
   useFrame((_, dt) => {
     if (!spin.current || !bodies.current || !tack.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, CARNIVAL.cycle));
     const t = time.current;
     const k = cycleIntensity(t, CARNIVAL.cycle);
     spin.current.rotation.y += step * k * ((Math.PI * 2) / CARNIVAL.turn);
@@ -3475,7 +3484,7 @@ export function FlyingCarousel({ a }: P) {
   useFrame((_, dt) => {
     if (!top.current || !lean.current || !spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, SWINGER.cycle));
     const t = time.current;
     const hf = swingerHeight(t);
     const k = cycleIntensity(t, SWINGER.cycle);
@@ -3584,7 +3593,7 @@ export function Bumper({ a }: P) {
   const { rx = 6, rz = 4.5 } = a.opts;
   const cars = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
-    if (cars.current) cars.current.rotation.y += dt * 0.4;
+    if (cars.current && rideRunning(a.id)) cars.current.rotation.y += dt * 0.4;
   });
   return (
     <group scale={[1, 1, rz / rx]}>
@@ -3625,10 +3634,12 @@ export function Track({ a }: P) {
   }, [rx, rz]);
   const geometry = useMemo(() => new THREE.TubeGeometry(curve, 80, 0.55, 4, true), [curve]);
   const trucks = useRef<(THREE.Mesh | null)[]>([]);
-  useFrame(({ clock }) => {
+  const time = useRef(0);
+  useFrame((_, dt) => {
+    if (rideRunning(a.id)) time.current += Math.min(dt, 0.1);
     trucks.current.forEach((m, i) => {
       if (!m) return;
-      const u = (clock.elapsedTime * 0.035 + i / 4) % 1;
+      const u = (time.current * 0.035 + i / 4) % 1;
       const p = curve.getPointAt(u);
       const d = curve.getTangentAt(u);
       m.position.set(p.x, 0.75, p.z);
@@ -3706,7 +3717,7 @@ export function Surf({ a }: P) {
   useFrame((_, dt) => {
     if (!carriage.current || !spin.current) return;
     const step = Math.min(dt, 0.1);
-    time.current += step;
+    time.current += advance(a, step, atPlatform(time.current, SURFSUP.cycle));
     const t = time.current;
     const k = cycleIntensity(t, SURFSUP.cycle);
     const x = k * SURFSUP.travel * half * Math.sin((t / SURFSUP.period) * Math.PI * 2);
@@ -3850,7 +3861,7 @@ export function HalfPipe({ a }: P) {
   const time = useRef(cycleOffset(a.position[0], a.position[2]));
   useFrame((_, dt) => {
     if (!armL.current || !armR.current || !bench.current) return;
-    time.current += Math.min(dt, 0.1); // a hidden tab shouldn't jump the ride on return
+    time.current += advance(a, Math.min(dt, 0.1), atPlatform(time.current, SURF.cycle)); // a hidden tab shouldn't jump the ride on return
     const t = time.current;
     const k = cycleIntensity(t, SURF.cycle);
     const th = rad(SURF.maxSwing) * k * Math.sin((t / SURF.period) * Math.PI * 2);

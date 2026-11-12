@@ -2,19 +2,21 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DESCRIPTIONS } from '../data/copy';
 import { ATTRACTIONS } from '../data/park';
 import type { Attraction, Vec2 } from '../data/types';
+import { useParkClock } from '../hooks/useParkClock';
 import { usePlaceDistances } from '../hooks/usePlaceDistances';
+import { arrivalWarning, formatHours, hoursState, hoursText } from '../lib/hours';
 import { formatMetres, type Route } from '../lib/pathfinding';
 import { AMENITY_LABEL, categoryLine } from '../lib/places';
 import { isRecommendable, whatNext } from '../lib/recommend';
 import { userPark, useUserPark } from '../state/userPark';
 import { Icon } from './icons';
-
-
+import { PlaceGlyph } from './PlaceGlyph';
 /**
- * The card at the top of the screen for the chosen place. It has three states:
- * information (what it is, how far, Navigate, and save/plan/visited buttons),
- * navigating (distance remaining, Cancel) and arrived (mark as visited, and a
- * suggestion for where to go next, which the visitor is free to ignore).
+ * The card at the bottom of the screen for the chosen place. It has three states:
+ * information (what it is, opening hours, how far, Navigate; swipe up for the
+ * description and save/plan/visited buttons), navigating (distance remaining,
+ * Cancel) and arrived (mark as visited, and a suggestion for where to go next,
+ * which the visitor is free to ignore).
  */
 export function PlaceCard({
   place,
@@ -46,6 +48,12 @@ export function PlaceCard({
   const description = DESCRIPTIONS[place.id];
   const far = route && route.metres >= 15;
 
+  // Opening hours, re-checked every minute.
+  const now = useParkClock();
+  const hours = hoursState(place.id, now);
+  const openNow = hours.state === 'always' || hours.state === 'open';
+  const warning = route && !arrived ? arrivalWarning(place.id, now, route.minutes) : null;
+
   // Bottom sheet: collapsed shows name, status and the main button; expanded adds the details.
   const [expanded, setExpanded] = useState(false);
   const canExpand = !navigating && !arrived;
@@ -58,7 +66,7 @@ export function PlaceCard({
     if (navigating) setExpanded(false);
   }, [navigating]);
 
-  // Tell the HUD how much of the bottom the card covers, so the side controls sit above it.
+  // Tell the rest of the app how much of the bottom the card covers (the camera keeps the place above it).
   useLayoutEffect(() => {
     const el = ref.current;
     const root = el?.closest<HTMLElement>('.dp-root');
@@ -79,8 +87,8 @@ export function PlaceCard({
   // On arrival, work out one suggestion for what to do next. Only then; never while walking.
   const metres = usePlaceDistances(arrived, getHere);
   const next = useMemo(
-    () => (arrived && metres.size ? whatNext({ places: ATTRACTIONS, metres, user, exclude: [place.id] }) : null),
-    [arrived, metres, user, place.id],
+    () => (arrived && metres.size ? whatNext({ places: ATTRACTIONS, metres, user, exclude: [place.id], now }) : null),
+    [arrived, metres, user, place.id, now],
   );
 
   let status: string;
@@ -135,8 +143,9 @@ export function PlaceCard({
           }}
         />
       )}
+
       <div className="dp-card__top">
-        <span className={`dp-card__icon dp-tint--${place.category}`}>{place.id}</span>
+        <span className={`dp-card__icon dp-tint--${place.category}`}><PlaceGlyph place={place} /></span>
         <div className="dp-card__text">
           {navigating && (
             <p className="dp-card__eyebrow">
@@ -156,15 +165,8 @@ export function PlaceCard({
               )}
             </p>
           )}
-          {!navigating && place.amenities && place.amenities.length > 0 && (
-            <p className="dp-card__amenities">
-              {place.amenities.map((m) => (
-                <span key={m} className={`dp-amenity dp-amenity--${m}`}>
-                  <Icon name={m} size={14} />
-                  {AMENITY_LABEL[m]}
-                </span>
-              ))}
-            </p>
+          {!navigating && hours.state !== 'always' && (
+            <p className={`dp-hours dp-hours--${hours.state}${hours.state === 'open' && hours.soon ? ' is-soon' : ''}`}>{hoursText(hours)}</p>
           )}
         </div>
         <button type="button" className="dp-icon-button" onClick={onClear} aria-label="Close and clear the route">
@@ -172,14 +174,14 @@ export function PlaceCard({
         </button>
       </div>
 
-      {/* {!navigating && !arrived && description && <p className="dp-card__desc">{description}</p>} */}
+      {warning && <p className="dp-card__warn">{warning}</p>}
 
       <div className="dp-card__bottom">
         {/* Announced when it changes state, but not on every distance tick while navigating. */}
         <p className="dp-card__status" role="status" aria-live={navigating ? 'off' : 'polite'}>
           {!arrived && <Icon name="pin" size={16} />}
           {status}
-          {arrived && isRecommendable(place) && <span className="dp-card__cheer"> Have fun.</span>}
+          {arrived && openNow && isRecommendable(place) && <span className="dp-card__cheer"> Have fun.</span>}
         </p>
         {!arrived && route && (
           <button type="button" className={`dp-button${navigating ? ' dp-button--quiet' : ''}`} onClick={navigating ? onCancel : onNavigate}>
@@ -195,7 +197,7 @@ export function PlaceCard({
         )}
       </div>
 
-      {/* On arrival the card already carries Mark as visited and a suggestion; the save buttons would crowd small screens. */}
+      {/* Expanded only, and never while navigating or on arrival, so the collapsed card stays small. */}
       {open && (
         <div className="dp-card__details">
           {place.amenities && place.amenities.length > 0 && (
@@ -209,6 +211,7 @@ export function PlaceCard({
             </p>
           )}
           {description && <p className="dp-card__desc">{description}</p>}
+          {hours.state !== 'always' && <p className="dp-card__today">Today: {formatHours(place.id)}</p>}
           {toggles}
         </div>
       )}

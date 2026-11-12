@@ -2,7 +2,7 @@ import { ATTRACTIONS } from '../data/park';
 import { matchesFilter, type Filter } from '../lib/places';
 import { useGame } from '../state/game';
 import { useUserPark } from '../state/userPark';
-
+import { PlaceGlyph } from './PlaceGlyph';
 /** Key used for the "You" tag in the overlay registry. */
 export const YOU = '__you';
 
@@ -53,7 +53,7 @@ export function PinLayer({
             aria-pressed={selected}
             tabIndex={filtered ? -1 : undefined}
           >
-            <span className="dp-pin__code">{a.id}</span>
+            <span className="dp-pin__code"><PlaceGlyph place={a} /></span>
             {(!compact || selected) && <span className="dp-pin__name">{a.name}</span>}
           </button>
         );

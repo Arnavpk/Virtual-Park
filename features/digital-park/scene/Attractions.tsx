@@ -33,6 +33,7 @@ function Model({ a }: { a: Attraction }) {
     case 'shipcafe': return <ShipCafe o={a.opts} />;
     case 'garden': return <Garden o={a.opts} />;
     case 'kiosk': return <Kiosk o={a.opts} />;
+    case 'none': return null;
     default: return <Hall o={a.opts} />;
   }
 }
@@ -67,7 +68,20 @@ export function Attractions({ onSelect }: { onSelect: (id: string) => void }) {
         </group>
       ))}
       {LANDMARKS.map((l) => (
-        <group key={l.id} position={[l.position[0], l.position[1], l.position[2]]} rotation={[0, rad(l.opts.rot), 0]}>
+        <group
+          key={l.id}
+          position={[l.position[0], l.position[1], l.position[2]]}
+          rotation={[0, rad(l.opts.rot), 0]}
+          onClick={
+            l.kind === 'gate'
+              ? (e: ThreeEvent<MouseEvent>) => {
+                e.stopPropagation();
+                if (e.delta > 6) return;
+                onSelect('gate');
+              }
+              : undefined
+          }
+        >
           <LandmarkModel l={l} />
         </group>
       ))}
